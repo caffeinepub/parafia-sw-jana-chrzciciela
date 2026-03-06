@@ -1,0 +1,2246 @@
+import { useQueryClient } from "@tanstack/react-query";
+import React, { useState, useRef } from "react";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  EyeOff,
+  GripVertical,
+  Image as ImageIcon,
+  Lock,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  AppUserRole,
+  type Event,
+  ExternalBlob,
+  type GalleryAlbum,
+  type GalleryPhoto,
+  type HomeSection,
+  type NewsArticle,
+  type SiteSettings,
+} from "../backend";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import {
+  useAddPhoto,
+  useAllContentBlocks,
+  useAllEvents,
+  useAllNews,
+  useAssignRole,
+  useCreateAlbum,
+  useCreateEvent,
+  useCreateNews,
+  useDeleteAlbum,
+  useDeleteEvent,
+  useDeleteNews,
+  useGalleryAlbums,
+  useGetCallerUserProfile,
+  useHomeSections,
+  useIsCallerAdmin,
+  useListAllRoles,
+  useRemovePhoto,
+  useSiteSettings,
+  useUpdateAlbum,
+  useUpdateContentBlock,
+  useUpdateEvent,
+  useUpdateHomeSections,
+  useUpdateNews,
+  useUpdateSiteSettings,
+} from "../hooks/useQueries";
+
+// ============================================================
+// ACCESS GUARD
+// ============================================================
+
+function AccessDenied() {
+  const { identity, clear } = useInternetIdentity();
+  const queryClient = useQueryClient();
+  const isAuthenticated = !!identity;
+
+  const handleLogout = async () => {
+    await clear();
+    queryClient.clear();
+  };
+
+  // Not logged in at all – simple message
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen pt-nav flex items-center justify-center">
+        <div className="text-center space-y-6 max-w-sm mx-auto px-4">
+          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+            <Lock className="w-7 h-7 text-muted-foreground" />
+          </div>
+          <h1 className="font-display text-3xl font-extralight text-foreground">
+            Wymagane logowanie
+          </h1>
+          <p className="font-sans text-sm text-muted-foreground leading-relaxed">
+            Kliknij ikonę kłódki w prawym dolnym rogu, aby się zalogować.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Logged in but not admin – detailed instructions
+  return (
+    <div className="min-h-screen pt-nav flex items-center justify-center px-4">
+      <div
+        className="max-w-md mx-auto space-y-8"
+        data-ocid="admin.access_denied.panel"
+      >
+        {/* Icon + title */}
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/30 flex items-center justify-center mx-auto">
+            <Lock className="w-7 h-7 text-amber-600 dark:text-amber-500" />
+          </div>
+          <h1 className="font-display text-3xl font-extralight text-foreground">
+            Brak dostępu administratora
+          </h1>
+          <p className="font-sans text-sm text-muted-foreground leading-relaxed">
+            Jesteś zalogowany, ale Twoje konto nie ma uprawnień administratora.
+            Prawdopodobnie zalogowałeś się bez tokenu administratora.
+          </p>
+        </div>
+
+        {/* Step-by-step instructions */}
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <p className="font-sans text-xs uppercase tracking-[0.15em] text-muted-foreground">
+            Jak uzyskać dostęp administratora
+          </p>
+          <ol className="space-y-4">
+            {[
+              {
+                step: "1",
+                text: "Wyloguj się klikając przycisk poniżej",
+              },
+              {
+                step: "2",
+                text: 'Wróć do panelu Caffeine i skopiuj link z tokenem administratora (przycisk "Admin link" lub podobny)',
+              },
+              {
+                step: "3",
+                text: 'Kliknij ikonę kłódki, rozwiń sekcję "Pierwsze logowanie jako administrator?", wklej token i zaloguj się',
+              },
+            ].map(({ step, text }) => (
+              <li key={step} className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center font-sans text-xs font-medium text-muted-foreground mt-0.5">
+                  {step}
+                </span>
+                <p className="font-sans text-sm text-foreground/80 leading-relaxed">
+                  {text}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Logout button */}
+        <Button
+          onClick={handleLogout}
+          variant="outline"
+          className="w-full font-sans font-light"
+          data-ocid="admin.access_denied.logout.button"
+        >
+          <Lock className="w-4 h-4 mr-2" />
+          Wyloguj się teraz
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// IMAGE UPLOAD HELPER
+// ============================================================
+
+function ImageUpload({
+  label,
+  current,
+  onUpload,
+  className,
+}: {
+  label: string;
+  current?: ExternalBlob | null;
+  onUpload: (blob: ExternalBlob) => void;
+  className?: string;
+}) {
+  const [progress, setProgress] = useState<number | null>(null);
+  const ref = useRef<HTMLInputElement>(null);
+
+  const url = current?.getDirectURL();
+  const hasImage = url && url !== "";
+
+  const handleFile = async (file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((p) => {
+      setProgress(p);
+    });
+    onUpload(blob);
+    setProgress(null);
+    toast.success("Zdjęcie dodane. Zapisz formularz, aby przesłać.");
+  };
+
+  return (
+    <div className={`space-y-2 ${className || ""}`}>
+      <Label className="font-sans text-sm font-light">{label}</Label>
+      <div
+        className="relative rounded-lg border-2 border-dashed border-border hover:border-primary/40 transition-colors overflow-hidden aspect-video"
+        data-ocid="admin.image.dropzone"
+        onClick={() => ref.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") ref.current?.click();
+        }}
+      >
+        {hasImage ? (
+          <img src={url} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="img-placeholder w-full h-full flex flex-col items-center justify-center gap-2">
+            <ImageIcon className="w-8 h-8 opacity-30" />
+            <span className="font-sans text-xs text-muted-foreground">
+              Kliknij, aby dodać zdjęcie
+            </span>
+          </div>
+        )}
+        {progress !== null && (
+          <div className="absolute inset-0 bg-foreground/60 flex items-center justify-center">
+            <div className="text-background font-sans text-sm">
+              {Math.round(progress)}%
+            </div>
+          </div>
+        )}
+        <div className="absolute bottom-2 right-2">
+          <button
+            type="button"
+            className="bg-card/80 backdrop-blur-sm border border-border rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-sans hover:bg-card transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              ref.current?.click();
+            }}
+            data-ocid="admin.image.upload_button"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            {hasImage ? "Zmień" : "Dodaj"}
+          </button>
+        </div>
+      </div>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+        }}
+      />
+    </div>
+  );
+}
+
+// ============================================================
+// CONTENT BLOCKS TAB
+// ============================================================
+
+const CONTENT_BLOCK_LABELS: Record<
+  string,
+  { label: string; hint: string; multiline?: boolean }
+> = {
+  "hero-title": {
+    label: "Hero – Tytuł",
+    hint: "Główny nagłówek sekcji Hero na stronie głównej",
+  },
+  "hero-subtitle": {
+    label: "Hero – Podtytuł",
+    hint: "Krótki podtytuł pod nagłówkiem",
+    multiline: true,
+  },
+  "hero-quote": {
+    label: "Hero – Cytat",
+    hint: "Cytat wyświetlany w sekcji Hero",
+  },
+  "pastor-word-title": {
+    label: "Słowo Proboszcza – Tytuł",
+    hint: "Tytuł sekcji Słowa Proboszcza",
+  },
+  "pastor-word-text": {
+    label: "Słowo Proboszcza – Treść",
+    hint: "Treść słowa proboszcza / myśl tygodnia",
+    multiline: true,
+  },
+  "pastor-name": {
+    label: "Proboszcz – Imię i nazwisko",
+    hint: "Imię i tytuł proboszcza",
+  },
+  "spiritual-quote-text": {
+    label: "Cytat Duchowy – Treść",
+    hint: "Główny cytat duchowy na stronie",
+    multiline: true,
+  },
+  "spiritual-quote-author": {
+    label: "Cytat Duchowy – Autor",
+    hint: "Autor cytatu duchowego",
+  },
+  "footer-text": {
+    label: "Stopka – Tekst",
+    hint: "Dodatkowy tekst w stopce strony",
+  },
+};
+
+function ContentBlocksTab() {
+  const { data: blocks, isLoading } = useAllContentBlocks();
+  const updateBlock = useUpdateContentBlock();
+
+  const [drafts, setDrafts] = React.useState<Record<string, string>>({});
+  const [saved, setSaved] = React.useState<Record<string, boolean>>({});
+
+  React.useEffect(() => {
+    if (blocks && blocks.length > 0) {
+      const map: Record<string, string> = {};
+      for (const b of blocks) {
+        map[b.id] = b.content;
+      }
+      setDrafts((prev) => ({ ...map, ...prev }));
+    }
+  }, [blocks]);
+
+  const handleSave = async (key: string) => {
+    try {
+      await updateBlock.mutateAsync({ key, content: drafts[key] ?? "" });
+      setSaved((p) => ({ ...p, [key]: true }));
+      toast.success("Treść zapisana");
+      setTimeout(() => setSaved((p) => ({ ...p, [key]: false })), 2000);
+    } catch {
+      toast.error("Błąd zapisu");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4" data-ocid="admin.content.loading_state">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-light text-foreground">
+          Treści
+        </h2>
+      </div>
+      <p className="font-sans text-sm text-muted-foreground">
+        Edytuj treści blokowe wyświetlane na stronie głównej.
+      </p>
+
+      <div className="space-y-6">
+        {Object.entries(CONTENT_BLOCK_LABELS).map(
+          ([key, { label, hint, multiline }]) => (
+            <div key={key} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="font-sans font-light text-sm">
+                    {label}
+                  </Label>
+                  <p className="font-sans text-xs text-muted-foreground">
+                    {hint}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant={saved[key] ? "secondary" : "default"}
+                  onClick={() => handleSave(key)}
+                  disabled={updateBlock.isPending}
+                  className="font-sans font-light shrink-0"
+                  data-ocid="admin.content.save_button"
+                >
+                  <Save className="w-3.5 h-3.5 mr-1.5" />
+                  {saved[key] ? "Zapisano" : "Zapisz"}
+                </Button>
+              </div>
+              {multiline ? (
+                <Textarea
+                  value={drafts[key] ?? ""}
+                  onChange={(e) =>
+                    setDrafts((p) => ({ ...p, [key]: e.target.value }))
+                  }
+                  placeholder={`Wprowadź: ${label}`}
+                  rows={4}
+                  className="font-sans resize-none"
+                  data-ocid={`admin.content.${key.replace(/-/g, "")}.textarea`}
+                />
+              ) : (
+                <Input
+                  value={drafts[key] ?? ""}
+                  onChange={(e) =>
+                    setDrafts((p) => ({ ...p, [key]: e.target.value }))
+                  }
+                  placeholder={`Wprowadź: ${label}`}
+                  className="font-sans"
+                  data-ocid={`admin.content.${key.replace(/-/g, "")}.input`}
+                />
+              )}
+            </div>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// NEWS TAB
+// ============================================================
+
+function NewsTab() {
+  const { data: news, isLoading, isError } = useAllNews();
+  const create = useCreateNews();
+  const update = useUpdateNews();
+  const del = useDeleteNews();
+
+  const empty: NewsArticle = {
+    id: "",
+    title: "",
+    content: "",
+    order: 0n,
+    date: new Date().toISOString().split("T")[0],
+    published: false,
+    image: ExternalBlob.fromURL(""),
+  };
+
+  const [editing, setEditing] = useState<NewsArticle | null>(null);
+  const [form, setForm] = useState<NewsArticle>(empty);
+
+  const openNew = () => {
+    setForm({ ...empty, id: crypto.randomUUID() });
+    setEditing({ ...empty, id: "new" });
+  };
+
+  const openEdit = (article: NewsArticle) => {
+    setForm(article);
+    setEditing(article);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editing?.id === "new") {
+        await create.mutateAsync(form);
+        toast.success("Artykuł dodany");
+      } else {
+        await update.mutateAsync({ id: form.id, article: form });
+        toast.success("Artykuł zaktualizowany");
+      }
+      setEditing(null);
+    } catch {
+      toast.error("Błąd zapisu");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await del.mutateAsync(id);
+      toast.success("Artykuł usunięty");
+    } catch {
+      toast.error("Błąd usuwania");
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditing(null)}
+            className="font-sans font-light"
+          >
+            ← Wróć
+          </Button>
+          <h2 className="font-display text-xl font-light text-foreground">
+            {editing.id === "new" ? "Nowy artykuł" : "Edytuj artykuł"}
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Tytuł</Label>
+              <Input
+                value={form.title}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, title: e.target.value }))
+                }
+                placeholder="Tytuł artykułu"
+                className="font-sans"
+                data-ocid="admin.news.title.input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Treść</Label>
+              <Textarea
+                value={form.content}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, content: e.target.value }))
+                }
+                placeholder="Treść artykułu..."
+                rows={8}
+                className="font-sans resize-none"
+                data-ocid="admin.news.content.textarea"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Data</Label>
+              <Input
+                type="date"
+                value={form.date}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, date: e.target.value }))
+                }
+                className="font-sans"
+                data-ocid="admin.news.date.input"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.published}
+                onCheckedChange={(v) =>
+                  setForm((p) => ({ ...p, published: v }))
+                }
+                data-ocid="admin.news.published.switch"
+              />
+              <Label className="font-sans font-light">Opublikowany</Label>
+            </div>
+          </div>
+          <ImageUpload
+            label="Zdjęcie"
+            current={form.image}
+            onUpload={(blob) => setForm((p) => ({ ...p, image: blob }))}
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <Button
+            onClick={handleSave}
+            disabled={create.isPending || update.isPending}
+            className="font-sans font-light"
+            data-ocid="admin.news.save.submit_button"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {create.isPending || update.isPending ? "Zapisywanie..." : "Zapisz"}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => setEditing(null)}
+            className="font-sans font-light"
+            data-ocid="admin.news.cancel.button"
+          >
+            Anuluj
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-xl font-light text-foreground">
+            Aktualności
+          </h2>
+        </div>
+        <div
+          className="text-center py-16 border border-dashed border-destructive/30 rounded-xl"
+          data-ocid="admin.news.error_state"
+        >
+          <p className="font-sans text-sm text-muted-foreground">
+            Wystąpił błąd podczas ładowania aktualności. Odśwież stronę i
+            spróbuj ponownie.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-light text-foreground">
+          Aktualności
+        </h2>
+        <Button
+          onClick={openNew}
+          size="sm"
+          className="font-sans font-light"
+          data-ocid="admin.news.add.primary_button"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Nowy artykuł
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3" data-ocid="admin.news.loading_state">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : !news || news.length === 0 ? (
+        <div
+          className="text-center py-16 border border-dashed border-border rounded-xl"
+          data-ocid="admin.news.empty_state"
+        >
+          <p className="font-sans text-sm text-muted-foreground">
+            Brak artykułów. Dodaj pierwszy.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {news.map((article, i) => (
+            <div
+              key={article.id}
+              className="flex items-center gap-4 bg-card rounded-lg p-4 border border-border"
+              data-ocid={`admin.news.item.${i + 1}`}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-display text-sm font-light text-foreground truncate">
+                    {article.title || "Bez tytułu"}
+                  </span>
+                  <Badge
+                    variant={article.published ? "default" : "secondary"}
+                    className="text-xs font-sans font-light"
+                  >
+                    {article.published ? "Opublikowany" : "Szkic"}
+                  </Badge>
+                </div>
+                <p className="font-sans text-xs text-muted-foreground mt-0.5">
+                  {article.date}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => openEdit(article)}
+                  data-ocid={`admin.news.edit.edit_button.${i + 1}`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      data-ocid={`admin.news.delete.delete_button.${i + 1}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent data-ocid="admin.news.delete.dialog">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="font-display font-light">
+                        Usuń artykuł
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="font-sans">
+                        Tej operacji nie można cofnąć. Artykuł zostanie trwale
+                        usunięty.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel
+                        className="font-sans font-light"
+                        data-ocid="admin.news.delete.cancel_button"
+                      >
+                        Anuluj
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDelete(article.id)}
+                        className="font-sans font-light bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        data-ocid="admin.news.delete.confirm_button"
+                      >
+                        Usuń
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// EVENTS TAB
+// ============================================================
+
+const LITURGICAL_COLORS = [
+  { value: "#7B2D2D", label: "Czerwony" },
+  { value: "#2D5A2D", label: "Zielony" },
+  { value: "#4B2D7B", label: "Fioletowy" },
+  { value: "#F5F0E8", label: "Biały" },
+  { value: "#B8941A", label: "Złoty" },
+];
+
+function EventsTab() {
+  const { data: events, isLoading, isError } = useAllEvents();
+  const create = useCreateEvent();
+  const update = useUpdateEvent();
+  const del = useDeleteEvent();
+
+  const empty: Event = {
+    id: "",
+    title: "",
+    featured: false,
+    date: new Date().toISOString().split("T")[0],
+    published: false,
+    description: "",
+    pinned: false,
+    liturgicalColor: "",
+    image: ExternalBlob.fromURL(""),
+  };
+
+  const [editing, setEditing] = useState<Event | null>(null);
+  const [form, setForm] = useState<Event>(empty);
+
+  const openNew = () => {
+    setForm({ ...empty, id: crypto.randomUUID() });
+    setEditing({ ...empty, id: "new" });
+  };
+
+  const openEdit = (event: Event) => {
+    setForm(event);
+    setEditing(event);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editing?.id === "new") {
+        await create.mutateAsync(form);
+        toast.success("Wydarzenie dodane");
+      } else {
+        await update.mutateAsync({ id: form.id, event: form });
+        toast.success("Wydarzenie zaktualizowane");
+      }
+      setEditing(null);
+    } catch {
+      toast.error("Błąd zapisu");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await del.mutateAsync(id);
+      toast.success("Wydarzenie usunięte");
+    } catch {
+      toast.error("Błąd usuwania");
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditing(null)}
+            className="font-sans font-light"
+          >
+            ← Wróć
+          </Button>
+          <h2 className="font-display text-xl font-light">
+            {editing.id === "new" ? "Nowe wydarzenie" : "Edytuj wydarzenie"}
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Tytuł</Label>
+              <Input
+                value={form.title}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, title: e.target.value }))
+                }
+                placeholder="Tytuł wydarzenia"
+                className="font-sans"
+                data-ocid="admin.event.title.input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Opis</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, description: e.target.value }))
+                }
+                placeholder="Opis wydarzenia..."
+                rows={5}
+                className="font-sans resize-none"
+                data-ocid="admin.event.description.textarea"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Data</Label>
+              <Input
+                type="date"
+                value={form.date}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, date: e.target.value }))
+                }
+                className="font-sans"
+                data-ocid="admin.event.date.input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Kolor liturgiczny</Label>
+              <Select
+                value={form.liturgicalColor}
+                onValueChange={(v) =>
+                  setForm((p) => ({ ...p, liturgicalColor: v }))
+                }
+              >
+                <SelectTrigger
+                  className="font-sans"
+                  data-ocid="admin.event.color.select"
+                >
+                  <SelectValue placeholder="Wybierz kolor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="" className="font-sans">
+                    Brak
+                  </SelectItem>
+                  {LITURGICAL_COLORS.map((c) => (
+                    <SelectItem
+                      key={c.value}
+                      value={c.value}
+                      className="font-sans"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: c.value }}
+                        />
+                        {c.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap gap-6">
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.published}
+                  onCheckedChange={(v) =>
+                    setForm((p) => ({ ...p, published: v }))
+                  }
+                  data-ocid="admin.event.published.switch"
+                />
+                <Label className="font-sans font-light">Opublikowane</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.featured}
+                  onCheckedChange={(v) =>
+                    setForm((p) => ({ ...p, featured: v }))
+                  }
+                  data-ocid="admin.event.featured.switch"
+                />
+                <Label className="font-sans font-light">Wyróżnione</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.pinned}
+                  onCheckedChange={(v) => setForm((p) => ({ ...p, pinned: v }))}
+                  data-ocid="admin.event.pinned.switch"
+                />
+                <Label className="font-sans font-light">Przypięte</Label>
+              </div>
+            </div>
+          </div>
+          <ImageUpload
+            label="Zdjęcie"
+            current={form.image}
+            onUpload={(blob) => setForm((p) => ({ ...p, image: blob }))}
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <Button
+            onClick={handleSave}
+            disabled={create.isPending || update.isPending}
+            className="font-sans font-light"
+            data-ocid="admin.event.save.submit_button"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {create.isPending || update.isPending ? "Zapisywanie..." : "Zapisz"}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => setEditing(null)}
+            className="font-sans font-light"
+            data-ocid="admin.event.cancel.button"
+          >
+            Anuluj
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-xl font-light">Wydarzenia</h2>
+        </div>
+        <div
+          className="text-center py-16 border border-dashed border-destructive/30 rounded-xl"
+          data-ocid="admin.events.error_state"
+        >
+          <p className="font-sans text-sm text-muted-foreground">
+            Wystąpił błąd podczas ładowania wydarzeń. Odśwież stronę i spróbuj
+            ponownie.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-light">Wydarzenia</h2>
+        <Button
+          onClick={openNew}
+          size="sm"
+          className="font-sans font-light"
+          data-ocid="admin.event.add.primary_button"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Nowe wydarzenie
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3" data-ocid="admin.events.loading_state">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : !events || events.length === 0 ? (
+        <div
+          className="text-center py-16 border border-dashed border-border rounded-xl"
+          data-ocid="admin.events.empty_state"
+        >
+          <p className="font-sans text-sm text-muted-foreground">
+            Brak wydarzeń.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {events.map((event, i) => (
+            <div
+              key={event.id}
+              className="flex items-center gap-4 bg-card rounded-lg p-4 border border-border"
+              data-ocid={`admin.event.item.${i + 1}`}
+            >
+              {event.liturgicalColor && (
+                <div
+                  className="w-1.5 h-8 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: event.liturgicalColor }}
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-display text-sm font-light truncate">
+                    {event.title || "Bez tytułu"}
+                  </span>
+                  {event.featured && (
+                    <Badge className="text-xs font-sans font-light">
+                      Wyróżnione
+                    </Badge>
+                  )}
+                  <Badge
+                    variant={event.published ? "default" : "secondary"}
+                    className="text-xs font-sans font-light"
+                  >
+                    {event.published ? "Opublikowane" : "Szkic"}
+                  </Badge>
+                </div>
+                <p className="font-sans text-xs text-muted-foreground mt-0.5">
+                  {event.date}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => openEdit(event)}
+                  data-ocid={`admin.event.edit.edit_button.${i + 1}`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      data-ocid={`admin.event.delete.delete_button.${i + 1}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent data-ocid="admin.event.delete.dialog">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="font-display font-light">
+                        Usuń wydarzenie
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="font-sans">
+                        Ta operacja jest nieodwracalna.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel
+                        className="font-sans font-light"
+                        data-ocid="admin.event.delete.cancel_button"
+                      >
+                        Anuluj
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDelete(event.id)}
+                        className="font-sans font-light bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        data-ocid="admin.event.delete.confirm_button"
+                      >
+                        Usuń
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// GALLERY TAB
+// ============================================================
+
+function GalleryTab() {
+  const { data: albums, isLoading } = useGalleryAlbums();
+  const createAlbum = useCreateAlbum();
+  const updateAlbum = useUpdateAlbum();
+  const deleteAlbum = useDeleteAlbum();
+  const addPhoto = useAddPhoto();
+  const removePhoto = useRemovePhoto();
+
+  const [editing, setEditing] = useState<GalleryAlbum | null>(null);
+  const [form, setForm] = useState<GalleryAlbum | null>(null);
+  const [uploadingAlbumId, setUploadingAlbumId] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const emptyAlbum: GalleryAlbum = {
+    id: "",
+    date: new Date().toISOString().split("T")[0],
+    name: "",
+    layout: "grid",
+    description: "",
+    coverImage: ExternalBlob.fromURL(""),
+    photos: [],
+  };
+
+  const openNew = () => {
+    const a = { ...emptyAlbum, id: crypto.randomUUID() };
+    setForm(a);
+    setEditing({ ...a, id: "new" });
+  };
+
+  const openEdit = (album: GalleryAlbum) => {
+    setForm(album);
+    setEditing(album);
+  };
+
+  const handleSave = async () => {
+    if (!form) return;
+    try {
+      if (editing?.id === "new") {
+        await createAlbum.mutateAsync(form);
+        toast.success("Album utworzony");
+      } else {
+        await updateAlbum.mutateAsync({ id: form.id, album: form });
+        toast.success("Album zaktualizowany");
+      }
+      setEditing(null);
+    } catch {
+      toast.error("Błąd zapisu");
+    }
+  };
+
+  const handleDeleteAlbum = async (id: string) => {
+    try {
+      await deleteAlbum.mutateAsync(id);
+      toast.success("Album usunięty");
+    } catch {
+      toast.error("Błąd usuwania");
+    }
+  };
+
+  const handleAddPhoto = async (albumId: string, file: File) => {
+    setUploadingAlbumId(albumId);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const blob = ExternalBlob.fromBytes(bytes);
+      const photo: GalleryPhoto = {
+        id: crypto.randomUUID(),
+        order: BigInt(Date.now()),
+        blob,
+        date: new Date().toISOString().split("T")[0],
+        caption: "",
+      };
+      await addPhoto.mutateAsync({ albumId, photo });
+      toast.success("Zdjęcie dodane");
+    } catch {
+      toast.error("Błąd dodawania zdjęcia");
+    } finally {
+      setUploadingAlbumId(null);
+    }
+  };
+
+  const handleRemovePhoto = async (albumId: string, photoId: string) => {
+    try {
+      await removePhoto.mutateAsync({ albumId, photoId });
+      toast.success("Zdjęcie usunięte");
+    } catch {
+      toast.error("Błąd usuwania zdjęcia");
+    }
+  };
+
+  if (editing && form) {
+    const album = albums?.find((a) => a.id === form.id) || form;
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditing(null)}
+            className="font-sans font-light"
+          >
+            ← Wróć
+          </Button>
+          <h2 className="font-display text-xl font-light">
+            {editing.id === "new" ? "Nowy album" : "Edytuj album"}
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Nazwa albumu</Label>
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((p) => (p ? { ...p, name: e.target.value } : p))
+                }
+                placeholder="Nazwa albumu"
+                className="font-sans"
+                data-ocid="admin.album.name.input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Opis</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm((p) =>
+                    p ? { ...p, description: e.target.value } : p,
+                  )
+                }
+                placeholder="Opis albumu..."
+                rows={3}
+                className="font-sans resize-none"
+                data-ocid="admin.album.description.textarea"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Data</Label>
+              <Input
+                type="date"
+                value={form.date}
+                onChange={(e) =>
+                  setForm((p) => (p ? { ...p, date: e.target.value } : p))
+                }
+                className="font-sans"
+                data-ocid="admin.album.date.input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-sans font-light">Układ galerii</Label>
+              <Select
+                value={form.layout}
+                onValueChange={(v) =>
+                  setForm((p) => (p ? { ...p, layout: v } : p))
+                }
+              >
+                <SelectTrigger
+                  className="font-sans"
+                  data-ocid="admin.album.layout.select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="grid" className="font-sans">
+                    Siatka
+                  </SelectItem>
+                  <SelectItem value="masonry" className="font-sans">
+                    Masonry
+                  </SelectItem>
+                  <SelectItem value="slider" className="font-sans">
+                    Slider
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <ImageUpload
+            label="Okładka albumu"
+            current={form.coverImage}
+            onUpload={(blob) =>
+              setForm((p) => (p ? { ...p, coverImage: blob } : p))
+            }
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <Button
+            onClick={handleSave}
+            disabled={createAlbum.isPending || updateAlbum.isPending}
+            className="font-sans font-light"
+            data-ocid="admin.album.save.submit_button"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {createAlbum.isPending || updateAlbum.isPending
+              ? "Zapisywanie..."
+              : "Zapisz album"}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => setEditing(null)}
+            className="font-sans font-light"
+            data-ocid="admin.album.cancel.button"
+          >
+            Anuluj
+          </Button>
+        </div>
+
+        {editing.id !== "new" && (
+          <div className="space-y-4 border-t border-border pt-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-lg font-light">
+                Zdjęcia ({album.photos.length})
+              </h3>
+              <Button
+                size="sm"
+                variant="outline"
+                className="font-sans font-light"
+                onClick={() => fileRef.current?.click()}
+                disabled={!!uploadingAlbumId}
+                data-ocid="admin.album.addphoto.upload_button"
+              >
+                {uploadingAlbumId ? (
+                  "Dodawanie..."
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5 mr-2" /> Dodaj zdjęcia
+                  </>
+                )}
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  for (const file of files) {
+                    await handleAddPhoto(album.id, file);
+                  }
+                }}
+              />
+            </div>
+
+            {album.photos.length === 0 ? (
+              <div
+                className="text-center py-10 border border-dashed border-border rounded-xl"
+                data-ocid="admin.album.photos.empty_state"
+              >
+                <p className="font-sans text-sm text-muted-foreground">
+                  Brak zdjęć. Dodaj pierwsze.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                {album.photos.map((photo, i) => (
+                  <div
+                    key={photo.id}
+                    className="relative group aspect-square rounded-lg overflow-hidden bg-muted"
+                    data-ocid={`admin.album.photo.item.${i + 1}`}
+                  >
+                    <img
+                      src={photo.blob.getDirectURL()}
+                      alt={photo.caption}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/40 transition-colors flex items-center justify-center">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="opacity-0 group-hover:opacity-100 h-8 w-8 text-background hover:text-background hover:bg-destructive/80 transition-all"
+                            data-ocid={`admin.photo.delete.delete_button.${i + 1}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent data-ocid="admin.photo.delete.dialog">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="font-display font-light">
+                              Usuń zdjęcie
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="font-sans">
+                              Ta operacja jest nieodwracalna.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel
+                              className="font-sans font-light"
+                              data-ocid="admin.photo.delete.cancel_button"
+                            >
+                              Anuluj
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() =>
+                                handleRemovePhoto(album.id, photo.id)
+                              }
+                              className="font-sans font-light bg-destructive text-destructive-foreground"
+                              data-ocid="admin.photo.delete.confirm_button"
+                            >
+                              Usuń
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-light">Galeria</h2>
+        <Button
+          onClick={openNew}
+          size="sm"
+          className="font-sans font-light"
+          data-ocid="admin.gallery.add.primary_button"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Nowy album
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          data-ocid="admin.gallery.loading_state"
+        >
+          {[1, 2].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      ) : !albums || albums.length === 0 ? (
+        <div
+          className="text-center py-16 border border-dashed border-border rounded-xl"
+          data-ocid="admin.gallery.empty_state"
+        >
+          <p className="font-sans text-sm text-muted-foreground">
+            Brak albumów.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {albums.map((album, i) => (
+            <div
+              key={album.id}
+              className="flex gap-4 bg-card rounded-xl p-4 border border-border"
+              data-ocid={`admin.gallery.album.item.${i + 1}`}
+            >
+              <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                {album.coverImage.getDirectURL() ? (
+                  <img
+                    src={album.coverImage.getDirectURL()}
+                    alt={album.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="img-placeholder w-full h-full" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-display text-sm font-light text-foreground truncate">
+                  {album.name}
+                </p>
+                <p className="font-sans text-xs text-muted-foreground">
+                  {album.date} · {album.photos.length} zdjęć
+                </p>
+                <p className="font-sans text-xs text-muted-foreground mt-1 capitalize">
+                  {album.layout}
+                </p>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => openEdit(album)}
+                  data-ocid={`admin.gallery.album.edit.edit_button.${i + 1}`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      data-ocid={`admin.gallery.album.delete.delete_button.${i + 1}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent data-ocid="admin.gallery.album.delete.dialog">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="font-display font-light">
+                        Usuń album
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="font-sans">
+                        Ta operacja jest nieodwracalna. Wszystkie zdjęcia
+                        zostaną usunięte.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel
+                        className="font-sans font-light"
+                        data-ocid="admin.gallery.album.delete.cancel_button"
+                      >
+                        Anuluj
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDeleteAlbum(album.id)}
+                        className="font-sans font-light bg-destructive text-destructive-foreground"
+                        data-ocid="admin.gallery.album.delete.confirm_button"
+                      >
+                        Usuń album
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// HOME SECTIONS TAB
+// ============================================================
+
+const SECTION_LABELS: Record<string, string> = {
+  hero: "Hero – Źródło",
+  slowo_proboszcza: "Słowo Proboszcza",
+  aktualnosci: "Aktualności",
+  wydarzenia: "Wydarzenia",
+  wspolnoty: "Wspólnoty",
+  galeria: "Galeria",
+  cytat_duchowy: "Cytat Duchowy",
+  kontakt: "Kontakt",
+};
+
+const DEFAULT_SECTIONS: HomeSection[] = [
+  {
+    id: "hero",
+    order: 1n,
+    sectionType: "hero",
+    enabled: true,
+    customTitle: "",
+    customContent: "",
+  },
+  {
+    id: "slowo",
+    order: 2n,
+    sectionType: "slowo_proboszcza",
+    enabled: true,
+    customTitle: "",
+    customContent: "",
+  },
+  {
+    id: "aktualnosci",
+    order: 3n,
+    sectionType: "aktualnosci",
+    enabled: true,
+    customTitle: "",
+    customContent: "",
+  },
+  {
+    id: "wydarzenia",
+    order: 4n,
+    sectionType: "wydarzenia",
+    enabled: true,
+    customTitle: "",
+    customContent: "",
+  },
+  {
+    id: "wspolnoty",
+    order: 5n,
+    sectionType: "wspolnoty",
+    enabled: true,
+    customTitle: "",
+    customContent: "",
+  },
+  {
+    id: "galeria",
+    order: 6n,
+    sectionType: "galeria",
+    enabled: true,
+    customTitle: "",
+    customContent: "",
+  },
+  {
+    id: "cytat",
+    order: 7n,
+    sectionType: "cytat_duchowy",
+    enabled: true,
+    customTitle: "",
+    customContent: "",
+  },
+  {
+    id: "kontakt",
+    order: 8n,
+    sectionType: "kontakt",
+    enabled: true,
+    customTitle: "",
+    customContent: "",
+  },
+];
+
+function HomeSectionsTab() {
+  const { data: serverSections } = useHomeSections();
+  const updateSections = useUpdateHomeSections();
+
+  const [sections, setSections] = useState<HomeSection[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (serverSections && serverSections.length > 0) {
+      setSections(
+        [...serverSections].sort((a, b) => Number(a.order) - Number(b.order)),
+      );
+    } else {
+      setSections(DEFAULT_SECTIONS);
+    }
+  }, [serverSections]);
+
+  const moveUp = (i: number) => {
+    if (i === 0) return;
+    setSections((prev) => {
+      const arr = [...prev];
+      [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+      return arr.map((s, idx) => ({ ...s, order: BigInt(idx + 1) }));
+    });
+  };
+
+  const moveDown = (i: number) => {
+    setSections((prev) => {
+      if (i >= prev.length - 1) return prev;
+      const arr = [...prev];
+      [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
+      return arr.map((s, idx) => ({ ...s, order: BigInt(idx + 1) }));
+    });
+  };
+
+  const toggle = (id: string) => {
+    setSections((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)),
+    );
+  };
+
+  const updateField = (
+    id: string,
+    field: "customTitle" | "customContent",
+    value: string,
+  ) => {
+    setSections((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)),
+    );
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateSections.mutateAsync(sections);
+      toast.success("Sekcje strony głównej zaktualizowane");
+    } catch {
+      toast.error("Błąd zapisu");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-light">Strona Główna</h2>
+        <Button
+          onClick={handleSave}
+          disabled={updateSections.isPending}
+          size="sm"
+          className="font-sans font-light"
+          data-ocid="admin.sections.save.submit_button"
+        >
+          <Save className="w-4 h-4 mr-2" />
+          {updateSections.isPending ? "Zapisywanie..." : "Zapisz zmiany"}
+        </Button>
+      </div>
+
+      <p className="font-sans text-sm text-muted-foreground">
+        Zarządzaj kolejnością i widocznością sekcji na stronie głównej.
+      </p>
+
+      <div className="space-y-2">
+        {sections.map((section, i) => (
+          <div
+            key={section.id}
+            className={`bg-card rounded-xl border transition-all duration-200 ${
+              section.enabled ? "border-border" : "border-border/50 opacity-60"
+            }`}
+            data-ocid={`admin.section.item.${i + 1}`}
+          >
+            <div className="flex items-center gap-3 p-4">
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 opacity-50 hover:opacity-100"
+                  onClick={() => moveUp(i)}
+                  disabled={i === 0}
+                  data-ocid={`admin.section.up.button.${i + 1}`}
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 opacity-50 hover:opacity-100"
+                  onClick={() => moveDown(i)}
+                  disabled={i === sections.length - 1}
+                  data-ocid={`admin.section.down.button.${i + 1}`}
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+
+              <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
+
+              <div className="flex-1">
+                <p className="font-display text-sm font-light text-foreground">
+                  {SECTION_LABELS[section.sectionType] || section.sectionType}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedId(expandedId === section.id ? null : section.id)
+                  }
+                  className="font-sans text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  data-ocid={`admin.section.edit.edit_button.${i + 1}`}
+                >
+                  {expandedId === section.id ? "Zwiń" : "Edytuj"}
+                </button>
+                <Switch
+                  checked={section.enabled}
+                  onCheckedChange={() => toggle(section.id)}
+                  data-ocid={`admin.section.enabled.switch.${i + 1}`}
+                />
+                {section.enabled ? (
+                  <Eye className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <EyeOff className="w-4 h-4 text-muted-foreground" />
+                )}
+              </div>
+            </div>
+
+            {expandedId === section.id && (
+              <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
+                <div className="space-y-1.5">
+                  <Label className="font-sans text-xs font-light text-muted-foreground">
+                    Tytuł sekcji (opcjonalnie)
+                  </Label>
+                  <Input
+                    value={section.customTitle}
+                    onChange={(e) =>
+                      updateField(section.id, "customTitle", e.target.value)
+                    }
+                    placeholder="Zostaw puste aby użyć domyślnego"
+                    className="font-sans text-sm"
+                    data-ocid={`admin.section.title.input.${i + 1}`}
+                  />
+                </div>
+                {["slowo_proboszcza", "cytat_duchowy", "hero"].includes(
+                  section.sectionType,
+                ) && (
+                  <div className="space-y-1.5">
+                    <Label className="font-sans text-xs font-light text-muted-foreground">
+                      Treść
+                    </Label>
+                    <Textarea
+                      value={section.customContent}
+                      onChange={(e) =>
+                        updateField(section.id, "customContent", e.target.value)
+                      }
+                      placeholder="Treść sekcji..."
+                      rows={4}
+                      className="font-sans text-sm resize-none"
+                      data-ocid={`admin.section.content.textarea.${i + 1}`}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// NAVIGATION TAB
+// ============================================================
+
+const DEFAULT_NAV = [
+  { name: "Aktualności", path: "/aktualnosci", visible: true },
+  { name: "Liturgia", path: "/liturgia", visible: true },
+  { name: "Wydarzenia", path: "/wydarzenia", visible: true },
+  { name: "Wspólnoty", path: "/wspolnoty", visible: true },
+  { name: "Galeria", path: "/galeria", visible: true },
+  { name: "Kancelaria", path: "/kancelaria", visible: true },
+  { name: "Kontakt", path: "/kontakt", visible: true },
+];
+
+function NavigationTab() {
+  const { data: settings } = useSiteSettings();
+  const update = useUpdateSiteSettings();
+
+  const [items, setItems] = useState(DEFAULT_NAV);
+
+  React.useEffect(() => {
+    if (settings?.navigation) {
+      try {
+        setItems(JSON.parse(settings.navigation));
+      } catch {
+        setItems(DEFAULT_NAV);
+      }
+    }
+  }, [settings]);
+
+  const updateName = (i: number, name: string) => {
+    setItems((prev) =>
+      prev.map((item, idx) => (idx === i ? { ...item, name } : item)),
+    );
+  };
+
+  const toggleVisible = (i: number) => {
+    setItems((prev) =>
+      prev.map((item, idx) =>
+        idx === i ? { ...item, visible: !item.visible } : item,
+      ),
+    );
+  };
+
+  const handleSave = async () => {
+    const current = settings || {
+      contactData: "{}",
+      navigation: "",
+      aestheticMode: "jordan",
+      typography: "{}",
+    };
+    try {
+      await update.mutateAsync({
+        ...current,
+        navigation: JSON.stringify(items),
+      });
+      toast.success("Nawigacja zaktualizowana");
+    } catch {
+      toast.error("Błąd zapisu");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-light">Nawigacja</h2>
+        <Button
+          onClick={handleSave}
+          disabled={update.isPending}
+          size="sm"
+          className="font-sans font-light"
+          data-ocid="admin.nav.save.submit_button"
+        >
+          <Save className="w-4 h-4 mr-2" />
+          {update.isPending ? "Zapisywanie..." : "Zapisz"}
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <div
+            key={item.path}
+            className={`flex items-center gap-3 bg-card rounded-lg p-3 border border-border ${!item.visible ? "opacity-50" : ""}`}
+            data-ocid={`admin.nav.item.${i + 1}`}
+          >
+            <div className="flex-1">
+              <Input
+                value={item.name}
+                onChange={(e) => updateName(i, e.target.value)}
+                className="font-sans font-light text-sm border-0 bg-transparent p-0 h-auto focus-visible:ring-0"
+                data-ocid={`admin.nav.name.input.${i + 1}`}
+              />
+              <p className="font-sans text-xs text-muted-foreground">
+                {item.path}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={item.visible}
+                onCheckedChange={() => toggleVisible(i)}
+                data-ocid={`admin.nav.visible.switch.${i + 1}`}
+              />
+              {item.visible ? (
+                <Eye className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <EyeOff className="w-4 h-4 text-muted-foreground" />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SETTINGS TAB
+// ============================================================
+
+function SettingsTab() {
+  const { data: settings } = useSiteSettings();
+  const update = useUpdateSiteSettings();
+
+  const [contact, setContact] = useState({
+    address: "",
+    phone: "",
+    email: "",
+    hours: "",
+  });
+  const [aestheticMode, setAestheticMode] = useState("jordan");
+
+  React.useEffect(() => {
+    if (settings) {
+      try {
+        setContact({
+          address: "",
+          phone: "",
+          email: "",
+          hours: "",
+          ...JSON.parse(settings.contactData || "{}"),
+        });
+      } catch {}
+      setAestheticMode(settings.aestheticMode || "jordan");
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
+    const base = settings || {
+      navigation: JSON.stringify(DEFAULT_NAV),
+      typography: "{}",
+    };
+    try {
+      await update.mutateAsync({
+        ...base,
+        contactData: JSON.stringify(contact),
+        aestheticMode,
+      });
+      toast.success("Ustawienia zapisane");
+    } catch {
+      toast.error("Błąd zapisu");
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-light">Ustawienia</h2>
+        <Button
+          onClick={handleSave}
+          disabled={update.isPending}
+          size="sm"
+          className="font-sans font-light"
+          data-ocid="admin.settings.save.submit_button"
+        >
+          <Save className="w-4 h-4 mr-2" />
+          {update.isPending ? "Zapisywanie..." : "Zapisz"}
+        </Button>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="font-display text-base font-light text-foreground/70">
+          Tryb estetyczny (domyślny)
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {["jordan", "pustynia", "ogien", "cisza", "noc"].map((m) => (
+            <button
+              type="button"
+              key={m}
+              onClick={() => setAestheticMode(m)}
+              className={`px-4 py-2 rounded-full font-sans text-sm capitalize transition-all ${
+                aestheticMode === m
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent"
+              }`}
+              data-ocid={`admin.settings.mode.${m}.button`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="font-display text-base font-light text-foreground/70">
+          Dane kontaktowe
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Adres</Label>
+            <Textarea
+              value={contact.address}
+              onChange={(e) =>
+                setContact((p) => ({ ...p, address: e.target.value }))
+              }
+              placeholder="ul. Przykładowa 1, 00-000 Miasto"
+              rows={3}
+              className="font-sans resize-none"
+              data-ocid="admin.settings.address.textarea"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Godziny kancelarii</Label>
+            <Textarea
+              value={contact.hours}
+              onChange={(e) =>
+                setContact((p) => ({ ...p, hours: e.target.value }))
+              }
+              placeholder="Pn–Pt: 9:00–12:00"
+              rows={3}
+              className="font-sans resize-none"
+              data-ocid="admin.settings.hours.textarea"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Telefon</Label>
+            <Input
+              value={contact.phone}
+              onChange={(e) =>
+                setContact((p) => ({ ...p, phone: e.target.value }))
+              }
+              placeholder="+48 000 000 000"
+              className="font-sans"
+              data-ocid="admin.settings.phone.input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-sans font-light">E-mail</Label>
+            <Input
+              type="email"
+              value={contact.email}
+              onChange={(e) =>
+                setContact((p) => ({ ...p, email: e.target.value }))
+              }
+              placeholder="parafia@example.pl"
+              className="font-sans"
+              data-ocid="admin.settings.email.input"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ROLES TAB
+// ============================================================
+
+function RolesTab() {
+  const { data: roles, isLoading } = useListAllRoles();
+  const assign = useAssignRole();
+
+  const handleAssign = async (
+    user: import("@icp-sdk/core/principal").Principal,
+    role: AppUserRole,
+  ) => {
+    try {
+      await assign.mutateAsync({ user, role });
+      toast.success("Rola przypisana");
+    } catch {
+      toast.error("Błąd przypisywania roli");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="font-display text-xl font-light">Role użytkowników</h2>
+
+      {isLoading ? (
+        <div className="space-y-3" data-ocid="admin.roles.loading_state">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
+      ) : !roles || roles.length === 0 ? (
+        <div
+          className="text-center py-16 border border-dashed border-border rounded-xl"
+          data-ocid="admin.roles.empty_state"
+        >
+          <p className="font-sans text-sm text-muted-foreground">
+            Brak przypisanych ról.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {roles.map(([principal, role], i) => (
+            <div
+              key={principal.toString()}
+              className="flex items-center gap-4 bg-card rounded-lg p-4 border border-border"
+              data-ocid={`admin.roles.item.${i + 1}`}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-sans text-xs text-muted-foreground font-mono truncate">
+                  {principal.toString()}
+                </p>
+              </div>
+              <Select
+                value={role}
+                onValueChange={(v) => handleAssign(principal, v as AppUserRole)}
+              >
+                <SelectTrigger
+                  className="w-36 font-sans text-sm"
+                  data-ocid={`admin.roles.role.select.${i + 1}`}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    value={AppUserRole.admin}
+                    className="font-sans capitalize"
+                  >
+                    Admin
+                  </SelectItem>
+                  <SelectItem
+                    value={AppUserRole.editor}
+                    className="font-sans capitalize"
+                  >
+                    Redaktor
+                  </SelectItem>
+                  <SelectItem
+                    value={AppUserRole.moderator}
+                    className="font-sans capitalize"
+                  >
+                    Moderator
+                  </SelectItem>
+                  <SelectItem
+                    value={AppUserRole.photographer}
+                    className="font-sans capitalize"
+                  >
+                    Fotograf
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN ADMIN PAGE
+// ============================================================
+
+export function AdminPage() {
+  const { identity } = useInternetIdentity();
+  const { data: isAdmin, isLoading: checkingAdmin } = useIsCallerAdmin();
+  const { data: profile } = useGetCallerUserProfile();
+
+  if (!identity) {
+    return <AccessDenied />;
+  }
+
+  if (checkingAdmin) {
+    return (
+      <div className="min-h-screen pt-nav flex items-center justify-center">
+        <div data-ocid="admin.loading_state">
+          <Skeleton className="h-6 w-48" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return <AccessDenied />;
+  }
+
+  return (
+    <main className="min-h-screen pt-nav bg-background">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
+        {/* Header */}
+        <div className="mb-10">
+          <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
+            Panel administratora
+          </p>
+          <h1 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
+            Parafia św. Jana Chrzciciela
+          </h1>
+          {profile && (
+            <p className="font-sans text-sm text-muted-foreground mt-2">
+              Zalogowany jako:{" "}
+              <span className="text-foreground">{profile.name}</span>
+            </p>
+          )}
+          <div className="w-12 h-px bg-border mt-4" />
+        </div>
+
+        <Tabs defaultValue="strona" className="space-y-8">
+          <TabsList
+            className="flex flex-wrap gap-1 h-auto bg-muted/40 p-1 rounded-xl"
+            data-ocid="admin.tabs.panel"
+          >
+            {[
+              { value: "strona", label: "Strona Główna" },
+              { value: "tresci", label: "Treści" },
+              { value: "aktualnosci", label: "Aktualności" },
+              { value: "wydarzenia", label: "Wydarzenia" },
+              { value: "galeria", label: "Galeria" },
+              { value: "nawigacja", label: "Nawigacja" },
+              { value: "ustawienia", label: "Ustawienia" },
+              { value: "role", label: "Role" },
+            ].map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="font-sans font-light text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-lg"
+                data-ocid={`admin.${tab.value}.tab`}
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="strona">
+            <HomeSectionsTab />
+          </TabsContent>
+          <TabsContent value="tresci">
+            <ContentBlocksTab />
+          </TabsContent>
+          <TabsContent value="aktualnosci">
+            <NewsTab />
+          </TabsContent>
+          <TabsContent value="wydarzenia">
+            <EventsTab />
+          </TabsContent>
+          <TabsContent value="galeria">
+            <GalleryTab />
+          </TabsContent>
+          <TabsContent value="nawigacja">
+            <NavigationTab />
+          </TabsContent>
+          <TabsContent value="ustawienia">
+            <SettingsTab />
+          </TabsContent>
+          <TabsContent value="role">
+            <RolesTab />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </main>
+  );
+}

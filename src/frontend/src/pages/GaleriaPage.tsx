@@ -1,0 +1,278 @@
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
+import React, { useState } from "react";
+import type { GalleryAlbum, GalleryPhoto } from "../backend.d";
+import { ImageWithFallback } from "../components/parish/ImagePlaceholder";
+import { SectionReveal } from "../components/parish/SectionReveal";
+import { useGalleryAlbums } from "../hooks/useQueries";
+
+function AlbumGrid({
+  album,
+  onBack,
+}: { album: GalleryAlbum; onBack: () => void }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const photos = [...album.photos].sort(
+    (a, b) => Number(a.order) - Number(b.order),
+  );
+
+  const prev = () => {
+    if (lightboxIndex === null) return;
+    setLightboxIndex((lightboxIndex - 1 + photos.length) % photos.length);
+  };
+
+  const next = () => {
+    if (lightboxIndex === null) return;
+    setLightboxIndex((lightboxIndex + 1) % photos.length);
+  };
+
+  React.useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (lightboxIndex === null) return;
+      if (e.key === "ArrowLeft") prev();
+      if (e.key === "ArrowRight") next();
+      if (e.key === "Escape") setLightboxIndex(null);
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  });
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans transition-colors mb-8"
+        data-ocid="gallery.album.back.button"
+      >
+        <ArrowLeft className="w-4 h-4" /> Wróć do galerii
+      </button>
+
+      <div className="mb-10">
+        <h2 className="font-display text-3xl font-extralight text-foreground">
+          {album.name}
+        </h2>
+        {album.description && (
+          <p className="font-sans text-sm text-muted-foreground mt-2">
+            {album.description}
+          </p>
+        )}
+        <p className="font-sans text-xs text-muted-foreground mt-1">
+          {album.date}
+        </p>
+      </div>
+
+      {photos.length === 0 ? (
+        <div
+          className="text-center py-24 border border-dashed border-border rounded-xl"
+          data-ocid="gallery.photos.empty_state"
+        >
+          <p className="font-sans text-sm text-muted-foreground">
+            Ten album jest pusty.
+          </p>
+        </div>
+      ) : album.layout === "masonry" ? (
+        <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
+          {photos.map((photo, i) => (
+            <button
+              type="button"
+              key={photo.id}
+              className="break-inside-avoid w-full rounded-xl overflow-hidden block"
+              onClick={() => setLightboxIndex(i)}
+              data-ocid={`gallery.photo.item.${i + 1}`}
+            >
+              <img
+                src={photo.blob.getDirectURL()}
+                alt={photo.caption}
+                loading="lazy"
+                decoding="async"
+                className="w-full hover:scale-[1.02] transition-transform duration-500"
+              />
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {photos.map((photo, i) => (
+            <button
+              type="button"
+              key={photo.id}
+              className="aspect-square rounded-xl overflow-hidden block group"
+              onClick={() => setLightboxIndex(i)}
+              data-ocid={`gallery.photo.item.${i + 1}`}
+            >
+              <img
+                src={photo.blob.getDirectURL()}
+                alt={photo.caption}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 bg-foreground/90 flex items-center justify-center"
+          data-ocid="gallery.lightbox.modal"
+        >
+          <button
+            type="button"
+            className="absolute top-4 right-4 text-background/80 hover:text-background transition-colors p-2"
+            onClick={() => setLightboxIndex(null)}
+            data-ocid="gallery.lightbox.close_button"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          <button
+            type="button"
+            className="absolute left-4 text-background/80 hover:text-background transition-colors p-3"
+            onClick={prev}
+            data-ocid="gallery.lightbox.prev.button"
+          >
+            <ChevronLeft className="w-8 h-8" />
+          </button>
+
+          <div className="max-w-4xl max-h-[90vh] mx-16 flex flex-col items-center gap-4">
+            <img
+              src={photos[lightboxIndex].blob.getDirectURL()}
+              alt={photos[lightboxIndex].caption}
+              className="max-h-[80vh] max-w-full object-contain rounded-lg"
+            />
+            {photos[lightboxIndex].caption && (
+              <p className="font-sans text-sm text-background/70">
+                {photos[lightboxIndex].caption}
+              </p>
+            )}
+            <p className="font-sans text-xs text-background/50">
+              {lightboxIndex + 1} / {photos.length}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="absolute right-4 text-background/80 hover:text-background transition-colors p-3"
+            onClick={next}
+            data-ocid="gallery.lightbox.next.button"
+          >
+            <ChevronRight className="w-8 h-8" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function GaleriaPage() {
+  const { data: albums, isLoading } = useGalleryAlbums();
+  const [selectedAlbum, setSelectedAlbum] = useState<GalleryAlbum | null>(null);
+
+  if (selectedAlbum) {
+    return (
+      <main className="min-h-screen pt-nav">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+          <AlbumGrid
+            album={selectedAlbum}
+            onBack={() => setSelectedAlbum(null)}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen pt-nav">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+        <SectionReveal>
+          <div className="mb-16">
+            <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
+              Pamięć Światła
+            </p>
+            <h1 className="font-display text-4xl sm:text-5xl font-extralight text-foreground">
+              Galeria
+            </h1>
+            <div className="w-12 h-px bg-border mt-6" />
+          </div>
+        </SectionReveal>
+
+        {isLoading ? (
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            data-ocid="gallery.loading_state"
+          >
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-card rounded-xl overflow-hidden border border-border"
+              >
+                <Skeleton className="aspect-video w-full" />
+                <div className="p-5 space-y-2">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !albums || albums.length === 0 ? (
+          <SectionReveal>
+            <div
+              className="text-center py-24 border border-dashed border-border rounded-xl"
+              data-ocid="gallery.empty_state"
+            >
+              <p className="font-display text-xl font-light text-muted-foreground">
+                Brak albumów
+              </p>
+              <p className="font-sans text-sm text-muted-foreground mt-2">
+                Dodaj pierwszy album przez panel administracyjny.
+              </p>
+            </div>
+          </SectionReveal>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {albums.map((album, i) => (
+              <SectionReveal key={album.id} delay={i * 80}>
+                <button
+                  type="button"
+                  className="group w-full bg-card rounded-xl overflow-hidden border border-border hover:shadow-md transition-all duration-300 text-left"
+                  onClick={() => setSelectedAlbum(album)}
+                  data-ocid={`gallery.album.item.${i + 1}`}
+                >
+                  <div className="overflow-hidden">
+                    <ImageWithFallback
+                      blob={album.coverImage}
+                      alt={album.name}
+                      className="w-full group-hover:scale-[1.02] transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-5 space-y-1.5">
+                    <h2 className="font-display text-lg font-light text-foreground group-hover:text-primary transition-colors">
+                      {album.name}
+                    </h2>
+                    {album.description && (
+                      <p className="font-sans text-sm text-muted-foreground line-clamp-2">
+                        {album.description}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="font-sans text-xs text-muted-foreground">
+                        {album.date}
+                      </span>
+                      <span className="font-sans text-xs text-muted-foreground">
+                        {album.photos.length}{" "}
+                        {album.photos.length === 1 ? "zdjęcie" : "zdjęć"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              </SectionReveal>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
