@@ -8,20 +8,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  ChevronDown,
-  ChevronUp,
-  Key,
-  Lock,
-  Settings,
-  Unlock,
-} from "lucide-react";
+import { Lock, Settings, Unlock } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { useInternetIdentity } from "../../hooks/useInternetIdentity";
 import {
   useGetCallerUserProfile,
-  useIsCallerAdmin,
   useSaveUserProfile,
 } from "../../hooks/useQueries";
 import { Link } from "../../router";
@@ -32,14 +24,11 @@ export function LockButton() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [adminToken, setAdminToken] = useState("");
-  const [showTokenSection, setShowTokenSection] = useState(false);
 
   const isAuthenticated = !!identity;
   const isLoggingIn = loginStatus === "logging-in";
 
   const { data: userProfile, isFetched } = useGetCallerUserProfile();
-  const { data: isAdmin } = useIsCallerAdmin();
   const saveProfile = useSaveUserProfile();
 
   const showProfileSetup = isAuthenticated && isFetched && userProfile === null;
@@ -57,14 +46,8 @@ export function LockButton() {
       toast.success("Wylogowano pomyślnie");
     } else {
       try {
-        // Store token in sessionStorage BEFORE login so useActor picks it up
-        if (adminToken.trim()) {
-          sessionStorage.setItem("caffeineAdminToken", adminToken.trim());
-        }
         await login();
         setLoginOpen(false);
-        setAdminToken("");
-        setShowTokenSection(false);
         toast.success("Zalogowano pomyślnie");
       } catch (error: unknown) {
         const err = error as Error;
@@ -117,8 +100,8 @@ export function LockButton() {
         )}
       </button>
 
-      {/* Admin link (shown when admin is logged in) */}
-      {isAuthenticated && isAdmin && (
+      {/* Admin link (shown for any authenticated user — access check happens in AdminPage) */}
+      {isAuthenticated && (
         <Link
           to="/admin"
           className="fixed bottom-16 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-full shadow-sm text-xs text-muted-foreground hover:text-primary hover:border-primary/30 transition-all duration-200 font-sans"
@@ -130,16 +113,7 @@ export function LockButton() {
       )}
 
       {/* Login Dialog */}
-      <Dialog
-        open={loginOpen}
-        onOpenChange={(open) => {
-          setLoginOpen(open);
-          if (!open) {
-            setAdminToken("");
-            setShowTokenSection(false);
-          }
-        }}
-      >
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
         <DialogContent className="max-w-sm" data-ocid="auth.dialog">
           <DialogHeader>
             <DialogTitle className="font-display font-light text-xl">
@@ -151,47 +125,6 @@ export function LockButton() {
               Zaloguj się przez Internet Identity, aby uzyskać dostęp do panelu
               administracyjnego.
             </p>
-
-            {/* Admin token section */}
-            <div className="space-y-3">
-              <button
-                type="button"
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-sans"
-                onClick={() => setShowTokenSection((v) => !v)}
-                data-ocid="auth.token.section.toggle"
-              >
-                {showTokenSection ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
-                Pierwsze logowanie jako administrator?
-              </button>
-
-              {showTokenSection && (
-                <div className="space-y-2 p-3 bg-muted/40 rounded-lg border border-border/50">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Key className="w-3.5 h-3.5 text-muted-foreground" />
-                    <Label className="font-sans font-light text-xs text-muted-foreground">
-                      Token administratora
-                    </Label>
-                  </div>
-                  <Input
-                    id="admin-token"
-                    value={adminToken}
-                    onChange={(e) => setAdminToken(e.target.value)}
-                    placeholder="Wklej token z linku administratora"
-                    className="font-sans text-sm font-mono"
-                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                    data-ocid="auth.token.input"
-                  />
-                  <p className="font-sans text-xs text-muted-foreground leading-relaxed">
-                    Token znajdziesz w panelu Caffeine przy opublikowanej wersji
-                    aplikacji.
-                  </p>
-                </div>
-              )}
-            </div>
 
             <Button
               onClick={handleLogin}

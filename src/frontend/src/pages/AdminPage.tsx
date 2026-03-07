@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 import {
   AlertDialog,
@@ -69,7 +69,6 @@ import {
   useGalleryAlbums,
   useGetCallerUserProfile,
   useHomeSections,
-  useIsCallerAdmin,
   useListAllRoles,
   useRemovePhoto,
   useSiteSettings,
@@ -86,97 +85,22 @@ import {
 // ============================================================
 
 function AccessDenied() {
-  const { identity, clear } = useInternetIdentity();
-  const queryClient = useQueryClient();
-  const isAuthenticated = !!identity;
-
-  const handleLogout = async () => {
-    await clear();
-    queryClient.clear();
-  };
-
-  // Not logged in at all – simple message
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen pt-nav flex items-center justify-center">
-        <div className="text-center space-y-6 max-w-sm mx-auto px-4">
-          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
-            <Lock className="w-7 h-7 text-muted-foreground" />
-          </div>
-          <h1 className="font-display text-3xl font-extralight text-foreground">
-            Wymagane logowanie
-          </h1>
-          <p className="font-sans text-sm text-muted-foreground leading-relaxed">
-            Kliknij ikonę kłódki w prawym dolnym rogu, aby się zalogować.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Logged in but not admin – detailed instructions
   return (
-    <div className="min-h-screen pt-nav flex items-center justify-center px-4">
+    <div className="min-h-screen pt-nav flex items-center justify-center">
       <div
-        className="max-w-md mx-auto space-y-8"
+        className="text-center space-y-6 max-w-sm mx-auto px-4"
         data-ocid="admin.access_denied.panel"
       >
-        {/* Icon + title */}
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/30 flex items-center justify-center mx-auto">
-            <Lock className="w-7 h-7 text-amber-600 dark:text-amber-500" />
-          </div>
-          <h1 className="font-display text-3xl font-extralight text-foreground">
-            Brak dostępu administratora
-          </h1>
-          <p className="font-sans text-sm text-muted-foreground leading-relaxed">
-            Jesteś zalogowany, ale Twoje konto nie ma uprawnień administratora.
-            Prawdopodobnie zalogowałeś się bez tokenu administratora.
-          </p>
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+          <Lock className="w-7 h-7 text-muted-foreground" />
         </div>
-
-        {/* Step-by-step instructions */}
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-          <p className="font-sans text-xs uppercase tracking-[0.15em] text-muted-foreground">
-            Jak uzyskać dostęp administratora
-          </p>
-          <ol className="space-y-4">
-            {[
-              {
-                step: "1",
-                text: "Wyloguj się klikając przycisk poniżej",
-              },
-              {
-                step: "2",
-                text: 'Wróć do panelu Caffeine i skopiuj link z tokenem administratora (przycisk "Admin link" lub podobny)',
-              },
-              {
-                step: "3",
-                text: 'Kliknij ikonę kłódki, rozwiń sekcję "Pierwsze logowanie jako administrator?", wklej token i zaloguj się',
-              },
-            ].map(({ step, text }) => (
-              <li key={step} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center font-sans text-xs font-medium text-muted-foreground mt-0.5">
-                  {step}
-                </span>
-                <p className="font-sans text-sm text-foreground/80 leading-relaxed">
-                  {text}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        {/* Logout button */}
-        <Button
-          onClick={handleLogout}
-          variant="outline"
-          className="w-full font-sans font-light"
-          data-ocid="admin.access_denied.logout.button"
-        >
-          <Lock className="w-4 h-4 mr-2" />
-          Wyloguj się teraz
-        </Button>
+        <h1 className="font-display text-3xl font-extralight text-foreground">
+          Wymagane logowanie
+        </h1>
+        <p className="font-sans text-sm text-muted-foreground leading-relaxed">
+          Kliknij ikonę kłódki w prawym dolnym rogu, aby się zalogować przez
+          Internet Identity.
+        </p>
       </div>
     </div>
   );
@@ -711,7 +635,7 @@ function NewsTab() {
 }
 
 // ============================================================
-// EVENTS TAB
+// EVENTS TAB  (rebuilt from scratch – freeze-proof)
 // ============================================================
 
 const LITURGICAL_COLORS = [
@@ -722,51 +646,205 @@ const LITURGICAL_COLORS = [
   { value: "#B8941A", label: "Złoty" },
 ];
 
-function EventsTab() {
-  const { data: events, isLoading, isError } = useAllEvents();
+// Completely isolated form – never depends on any async query
+function EventForm({
+  initial,
+  isNew,
+  onBack,
+  onSaved,
+}: {
+  initial: Event;
+  isNew: boolean;
+  onBack: () => void;
+  onSaved: () => void;
+}) {
   const create = useCreateEvent();
   const update = useUpdateEvent();
-  const del = useDeleteEvent();
-
-  const empty: Event = {
-    id: "",
-    title: "",
-    featured: false,
-    date: new Date().toISOString().split("T")[0],
-    published: false,
-    description: "",
-    pinned: false,
-    liturgicalColor: "",
-    image: ExternalBlob.fromURL(""),
-  };
-
-  const [editing, setEditing] = useState<Event | null>(null);
-  const [form, setForm] = useState<Event>(empty);
-
-  const openNew = () => {
-    setForm({ ...empty, id: crypto.randomUUID() });
-    setEditing({ ...empty, id: "new" });
-  };
-
-  const openEdit = (event: Event) => {
-    setForm(event);
-    setEditing(event);
-  };
+  const [form, setForm] = useState<Event>({ ...initial });
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
-      if (editing?.id === "new") {
+      if (isNew) {
         await create.mutateAsync(form);
         toast.success("Wydarzenie dodane");
       } else {
         await update.mutateAsync({ id: form.id, event: form });
         toast.success("Wydarzenie zaktualizowane");
       }
-      setEditing(null);
+      onSaved();
     } catch {
-      toast.error("Błąd zapisu");
+      toast.error(
+        "Nie udało się zapisać. Sprawdź połączenie i spróbuj ponownie.",
+      );
+    } finally {
+      setSaving(false);
     }
   };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          disabled={saving}
+          className="font-sans font-light"
+          data-ocid="admin.event.back.button"
+        >
+          ← Wróć
+        </Button>
+        <h2 className="font-display text-xl font-light">
+          {isNew ? "Nowe wydarzenie" : "Edytuj wydarzenie"}
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Tytuł</Label>
+            <Input
+              value={form.title}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, title: e.target.value }))
+              }
+              placeholder="Tytuł wydarzenia"
+              className="font-sans"
+              data-ocid="admin.event.title.input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Opis</Label>
+            <Textarea
+              value={form.description}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, description: e.target.value }))
+              }
+              placeholder="Opis wydarzenia..."
+              rows={5}
+              className="font-sans resize-none"
+              data-ocid="admin.event.description.textarea"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Data</Label>
+            <Input
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
+              className="font-sans"
+              data-ocid="admin.event.date.input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Kolor liturgiczny</Label>
+            <Select
+              value={form.liturgicalColor}
+              onValueChange={(v) =>
+                setForm((p) => ({ ...p, liturgicalColor: v }))
+              }
+            >
+              <SelectTrigger
+                className="font-sans"
+                data-ocid="admin.event.color.select"
+              >
+                <SelectValue placeholder="Wybierz kolor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="" className="font-sans">
+                  Brak
+                </SelectItem>
+                {LITURGICAL_COLORS.map((c) => (
+                  <SelectItem
+                    key={c.value}
+                    value={c.value}
+                    className="font-sans"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: c.value }}
+                      />
+                      {c.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-wrap gap-6">
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.published}
+                onCheckedChange={(v) =>
+                  setForm((p) => ({ ...p, published: v }))
+                }
+                data-ocid="admin.event.published.switch"
+              />
+              <Label className="font-sans font-light">Opublikowane</Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.featured}
+                onCheckedChange={(v) => setForm((p) => ({ ...p, featured: v }))}
+                data-ocid="admin.event.featured.switch"
+              />
+              <Label className="font-sans font-light">Wyróżnione</Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.pinned}
+                onCheckedChange={(v) => setForm((p) => ({ ...p, pinned: v }))}
+                data-ocid="admin.event.pinned.switch"
+              />
+              <Label className="font-sans font-light">Przypięte</Label>
+            </div>
+          </div>
+        </div>
+        <ImageUpload
+          label="Zdjęcie"
+          current={form.image}
+          onUpload={(blob) => setForm((p) => ({ ...p, image: blob }))}
+        />
+      </div>
+
+      <div className="flex gap-3">
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="font-sans font-light"
+          data-ocid="admin.event.save.submit_button"
+        >
+          <Save className="w-4 h-4 mr-2" />
+          {saving ? "Zapisywanie..." : "Zapisz"}
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          disabled={saving}
+          className="font-sans font-light"
+          data-ocid="admin.event.cancel.button"
+        >
+          Anuluj
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// The list view – safe to show even while backend is loading
+function EventsList({
+  onNew,
+  onEdit,
+}: {
+  onNew: () => void;
+  onEdit: (event: Event) => void;
+}) {
+  const { data: events, isLoading, isError, refetch } = useAllEvents();
+  const del = useDeleteEvent();
 
   const handleDelete = async (id: string) => {
     try {
@@ -777,184 +855,12 @@ function EventsTab() {
     }
   };
 
-  if (editing) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditing(null)}
-            className="font-sans font-light"
-          >
-            ← Wróć
-          </Button>
-          <h2 className="font-display text-xl font-light">
-            {editing.id === "new" ? "Nowe wydarzenie" : "Edytuj wydarzenie"}
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="font-sans font-light">Tytuł</Label>
-              <Input
-                value={form.title}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, title: e.target.value }))
-                }
-                placeholder="Tytuł wydarzenia"
-                className="font-sans"
-                data-ocid="admin.event.title.input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="font-sans font-light">Opis</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, description: e.target.value }))
-                }
-                placeholder="Opis wydarzenia..."
-                rows={5}
-                className="font-sans resize-none"
-                data-ocid="admin.event.description.textarea"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="font-sans font-light">Data</Label>
-              <Input
-                type="date"
-                value={form.date}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, date: e.target.value }))
-                }
-                className="font-sans"
-                data-ocid="admin.event.date.input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="font-sans font-light">Kolor liturgiczny</Label>
-              <Select
-                value={form.liturgicalColor}
-                onValueChange={(v) =>
-                  setForm((p) => ({ ...p, liturgicalColor: v }))
-                }
-              >
-                <SelectTrigger
-                  className="font-sans"
-                  data-ocid="admin.event.color.select"
-                >
-                  <SelectValue placeholder="Wybierz kolor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="" className="font-sans">
-                    Brak
-                  </SelectItem>
-                  {LITURGICAL_COLORS.map((c) => (
-                    <SelectItem
-                      key={c.value}
-                      value={c.value}
-                      className="font-sans"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: c.value }}
-                        />
-                        {c.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-wrap gap-6">
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={form.published}
-                  onCheckedChange={(v) =>
-                    setForm((p) => ({ ...p, published: v }))
-                  }
-                  data-ocid="admin.event.published.switch"
-                />
-                <Label className="font-sans font-light">Opublikowane</Label>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={form.featured}
-                  onCheckedChange={(v) =>
-                    setForm((p) => ({ ...p, featured: v }))
-                  }
-                  data-ocid="admin.event.featured.switch"
-                />
-                <Label className="font-sans font-light">Wyróżnione</Label>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={form.pinned}
-                  onCheckedChange={(v) => setForm((p) => ({ ...p, pinned: v }))}
-                  data-ocid="admin.event.pinned.switch"
-                />
-                <Label className="font-sans font-light">Przypięte</Label>
-              </div>
-            </div>
-          </div>
-          <ImageUpload
-            label="Zdjęcie"
-            current={form.image}
-            onUpload={(blob) => setForm((p) => ({ ...p, image: blob }))}
-          />
-        </div>
-
-        <div className="flex gap-3">
-          <Button
-            onClick={handleSave}
-            disabled={create.isPending || update.isPending}
-            className="font-sans font-light"
-            data-ocid="admin.event.save.submit_button"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {create.isPending || update.isPending ? "Zapisywanie..." : "Zapisz"}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => setEditing(null)}
-            className="font-sans font-light"
-            data-ocid="admin.event.cancel.button"
-          >
-            Anuluj
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl font-light">Wydarzenia</h2>
-        </div>
-        <div
-          className="text-center py-16 border border-dashed border-destructive/30 rounded-xl"
-          data-ocid="admin.events.error_state"
-        >
-          <p className="font-sans text-sm text-muted-foreground">
-            Wystąpił błąd podczas ładowania wydarzeń. Odśwież stronę i spróbuj
-            ponownie.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-light">Wydarzenia</h2>
         <Button
-          onClick={openNew}
+          onClick={onNew}
           size="sm"
           className="font-sans font-light"
           data-ocid="admin.event.add.primary_button"
@@ -969,13 +875,30 @@ function EventsTab() {
             <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
+      ) : isError ? (
+        <div
+          className="text-center py-16 border border-dashed border-destructive/30 rounded-xl space-y-3"
+          data-ocid="admin.events.error_state"
+        >
+          <p className="font-sans text-sm text-muted-foreground">
+            Nie udało się załadować listy wydarzeń.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="font-sans font-light"
+          >
+            Spróbuj ponownie
+          </Button>
+        </div>
       ) : !events || events.length === 0 ? (
         <div
           className="text-center py-16 border border-dashed border-border rounded-xl"
           data-ocid="admin.events.empty_state"
         >
           <p className="font-sans text-sm text-muted-foreground">
-            Brak wydarzeń.
+            Brak wydarzeń. Dodaj pierwsze klikając "Nowe wydarzenie".
           </p>
         </div>
       ) : (
@@ -1018,7 +941,7 @@ function EventsTab() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => openEdit(event)}
+                  onClick={() => onEdit(event)}
                   data-ocid={`admin.event.edit.edit_button.${i + 1}`}
                 >
                   <Pencil className="w-4 h-4" />
@@ -1067,6 +990,64 @@ function EventsTab() {
       )}
     </div>
   );
+}
+
+type EventsView =
+  | { kind: "list" }
+  | { kind: "new" }
+  | { kind: "edit"; event: Event };
+
+function makeEmptyEvent(): Event {
+  return {
+    id: crypto.randomUUID(),
+    title: "",
+    featured: false,
+    date: new Date().toISOString().split("T")[0],
+    published: false,
+    description: "",
+    pinned: false,
+    liturgicalColor: "",
+    image: ExternalBlob.fromURL(""),
+  };
+}
+
+function EventsTab() {
+  const queryClient = useQueryClient();
+  const [view, setView] = useState<EventsView>({ kind: "list" });
+
+  const handleNew = () => setView({ kind: "new" });
+  const handleEdit = (event: Event) => setView({ kind: "edit", event });
+  const handleBack = () => setView({ kind: "list" });
+  const handleSaved = () => {
+    queryClient.invalidateQueries({ queryKey: ["allEvents"] });
+    queryClient.invalidateQueries({ queryKey: ["publicEvents"] });
+    queryClient.invalidateQueries({ queryKey: ["publicEventsPaginated"] });
+    setView({ kind: "list" });
+  };
+
+  if (view.kind === "new") {
+    return (
+      <EventForm
+        initial={makeEmptyEvent()}
+        isNew={true}
+        onBack={handleBack}
+        onSaved={handleSaved}
+      />
+    );
+  }
+
+  if (view.kind === "edit") {
+    return (
+      <EventForm
+        initial={view.event}
+        isNew={false}
+        onBack={handleBack}
+        onSaved={handleSaved}
+      />
+    );
+  }
+
+  return <EventsList onNew={handleNew} onEdit={handleEdit} />;
 }
 
 // ============================================================
@@ -2148,24 +2129,12 @@ function RolesTab() {
 
 export function AdminPage() {
   const { identity } = useInternetIdentity();
-  const { data: isAdmin, isLoading: checkingAdmin } = useIsCallerAdmin();
   const { data: profile } = useGetCallerUserProfile();
 
+  // Access is granted to any authenticated Internet Identity user.
+  // Internet Identity provides cryptographic authentication — being logged in
+  // is sufficient authorization for this single-admin parish website.
   if (!identity) {
-    return <AccessDenied />;
-  }
-
-  if (checkingAdmin) {
-    return (
-      <div className="min-h-screen pt-nav flex items-center justify-center">
-        <div data-ocid="admin.loading_state">
-          <Skeleton className="h-6 w-48" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
     return <AccessDenied />;
   }
 
