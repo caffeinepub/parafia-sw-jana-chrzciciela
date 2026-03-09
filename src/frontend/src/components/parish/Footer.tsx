@@ -30,7 +30,6 @@ export function Footer() {
               {[
                 { name: "Aktualności", path: "/aktualnosci" },
                 { name: "Liturgia", path: "/liturgia" },
-                { name: "Wydarzenia", path: "/wydarzenia" },
                 { name: "Galeria", path: "/galeria" },
                 { name: "Kontakt", path: "/kontakt" },
                 { name: "Kancelaria", path: "/kancelaria" },

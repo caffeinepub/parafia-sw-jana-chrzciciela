@@ -75,6 +75,28 @@ export const UserProfile = IDL.Record({
   'name' : IDL.Text,
   'role' : IDL.Opt(AppUserRole),
 });
+export const LiturgyEntry = IDL.Record({
+  'id' : IDL.Text,
+  'serviceType' : IDL.Text,
+  'entryType' : IDL.Text,
+  'order' : IDL.Nat,
+  'time' : IDL.Text,
+  'description' : IDL.Text,
+  'intention' : IDL.Text,
+});
+export const LiturgyDay = IDL.Record({
+  'entries' : IDL.Vec(LiturgyEntry),
+  'dayIndex' : IDL.Nat,
+});
+export const LiturgyWeek = IDL.Record({
+  'id' : IDL.Text,
+  'weekEnd' : IDL.Text,
+  'heroDescription' : IDL.Text,
+  'days' : IDL.Vec(LiturgyDay),
+  'heroSubtitle' : IDL.Text,
+  'heroTitle' : IDL.Text,
+  'weekStart' : IDL.Text,
+});
 export const HomeSection = IDL.Record({
   'id' : IDL.Text,
   'order' : IDL.Nat,
@@ -121,11 +143,17 @@ export const idlService = IDL.Service({
   'addPhoto' : IDL.Func([IDL.Text, GalleryPhoto], [], []),
   'assignAppRole' : IDL.Func([IDL.Principal, AppUserRole], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'copyPreviousWeek' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'createEvent' : IDL.Func([Event], [], []),
   'createGalleryAlbum' : IDL.Func([GalleryAlbum], [], []),
   'createNewsArticle' : IDL.Func([NewsArticle], [], []),
   'deleteEvent' : IDL.Func([IDL.Text], [], []),
   'deleteGalleryAlbum' : IDL.Func([IDL.Text], [], []),
+  'deleteLiturgyWeek' : IDL.Func([IDL.Text], [], []),
   'deleteNewsArticle' : IDL.Func([IDL.Text], [], []),
   'getAllContentBlocks' : IDL.Func([], [IDL.Vec(ContentBlock)], ['query']),
   'getAllEvents' : IDL.Func([], [IDL.Vec(Event)], ['query']),
@@ -134,10 +162,12 @@ export const idlService = IDL.Service({
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getContentBlock' : IDL.Func([IDL.Text], [IDL.Opt(ContentBlock)], ['query']),
+  'getCurrentLiturgyWeek' : IDL.Func([], [IDL.Opt(LiturgyWeek)], ['query']),
   'getEvent' : IDL.Func([IDL.Text], [IDL.Opt(Event)], ['query']),
   'getGalleryAlbum' : IDL.Func([IDL.Text], [IDL.Opt(GalleryAlbum)], ['query']),
   'getGalleryAlbums' : IDL.Func([], [IDL.Vec(GalleryAlbum)], ['query']),
   'getHomeSections' : IDL.Func([], [IDL.Vec(HomeSection)], ['query']),
+  'getLiturgyWeek' : IDL.Func([IDL.Text], [IDL.Opt(LiturgyWeek)], ['query']),
   'getNewsArticle' : IDL.Func([IDL.Text], [IDL.Opt(NewsArticle)], ['query']),
   'getPhotosByAlbum' : IDL.Func([IDL.Text], [IDL.Vec(GalleryPhoto)], ['query']),
   'getPublicEvents' : IDL.Func([], [IDL.Vec(Event)], ['query']),
@@ -154,8 +184,10 @@ export const idlService = IDL.Service({
       [IDL.Vec(IDL.Tuple(IDL.Principal, AppUserRole))],
       ['query'],
     ),
+  'listLiturgyWeeks' : IDL.Func([], [IDL.Vec(LiturgyWeek)], ['query']),
   'removePhoto' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'saveLiturgyWeek' : IDL.Func([LiturgyWeek], [], []),
   'updateContentBlock' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'updateEvent' : IDL.Func([IDL.Text, Event], [], []),
   'updateGalleryAlbum' : IDL.Func([IDL.Text, GalleryAlbum], [], []),
@@ -231,6 +263,28 @@ export const idlFactory = ({ IDL }) => {
     'name' : IDL.Text,
     'role' : IDL.Opt(AppUserRole),
   });
+  const LiturgyEntry = IDL.Record({
+    'id' : IDL.Text,
+    'serviceType' : IDL.Text,
+    'entryType' : IDL.Text,
+    'order' : IDL.Nat,
+    'time' : IDL.Text,
+    'description' : IDL.Text,
+    'intention' : IDL.Text,
+  });
+  const LiturgyDay = IDL.Record({
+    'entries' : IDL.Vec(LiturgyEntry),
+    'dayIndex' : IDL.Nat,
+  });
+  const LiturgyWeek = IDL.Record({
+    'id' : IDL.Text,
+    'weekEnd' : IDL.Text,
+    'heroDescription' : IDL.Text,
+    'days' : IDL.Vec(LiturgyDay),
+    'heroSubtitle' : IDL.Text,
+    'heroTitle' : IDL.Text,
+    'weekStart' : IDL.Text,
+  });
   const HomeSection = IDL.Record({
     'id' : IDL.Text,
     'order' : IDL.Nat,
@@ -277,11 +331,17 @@ export const idlFactory = ({ IDL }) => {
     'addPhoto' : IDL.Func([IDL.Text, GalleryPhoto], [], []),
     'assignAppRole' : IDL.Func([IDL.Principal, AppUserRole], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'copyPreviousWeek' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'createEvent' : IDL.Func([Event], [], []),
     'createGalleryAlbum' : IDL.Func([GalleryAlbum], [], []),
     'createNewsArticle' : IDL.Func([NewsArticle], [], []),
     'deleteEvent' : IDL.Func([IDL.Text], [], []),
     'deleteGalleryAlbum' : IDL.Func([IDL.Text], [], []),
+    'deleteLiturgyWeek' : IDL.Func([IDL.Text], [], []),
     'deleteNewsArticle' : IDL.Func([IDL.Text], [], []),
     'getAllContentBlocks' : IDL.Func([], [IDL.Vec(ContentBlock)], ['query']),
     'getAllEvents' : IDL.Func([], [IDL.Vec(Event)], ['query']),
@@ -294,6 +354,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(ContentBlock)],
         ['query'],
       ),
+    'getCurrentLiturgyWeek' : IDL.Func([], [IDL.Opt(LiturgyWeek)], ['query']),
     'getEvent' : IDL.Func([IDL.Text], [IDL.Opt(Event)], ['query']),
     'getGalleryAlbum' : IDL.Func(
         [IDL.Text],
@@ -302,6 +363,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getGalleryAlbums' : IDL.Func([], [IDL.Vec(GalleryAlbum)], ['query']),
     'getHomeSections' : IDL.Func([], [IDL.Vec(HomeSection)], ['query']),
+    'getLiturgyWeek' : IDL.Func([IDL.Text], [IDL.Opt(LiturgyWeek)], ['query']),
     'getNewsArticle' : IDL.Func([IDL.Text], [IDL.Opt(NewsArticle)], ['query']),
     'getPhotosByAlbum' : IDL.Func(
         [IDL.Text],
@@ -322,8 +384,10 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(IDL.Tuple(IDL.Principal, AppUserRole))],
         ['query'],
       ),
+    'listLiturgyWeeks' : IDL.Func([], [IDL.Vec(LiturgyWeek)], ['query']),
     'removePhoto' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'saveLiturgyWeek' : IDL.Func([LiturgyWeek], [], []),
     'updateContentBlock' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'updateEvent' : IDL.Func([IDL.Text, Event], [], []),
     'updateGalleryAlbum' : IDL.Func([IDL.Text, GalleryAlbum], [], []),

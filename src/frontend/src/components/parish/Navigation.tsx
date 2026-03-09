@@ -12,7 +12,6 @@ interface NavItem {
 const DEFAULT_NAV: NavItem[] = [
   { name: "Aktualności", path: "/aktualnosci", visible: true },
   { name: "Liturgia", path: "/liturgia", visible: true },
-  { name: "Wydarzenia", path: "/wydarzenia", visible: true },
   { name: "Wspólnoty", path: "/wspolnoty", visible: true },
   { name: "Galeria", path: "/galeria", visible: true },
   { name: "Kancelaria", path: "/kancelaria", visible: true },

@@ -1,6 +1,6 @@
-import { Calendar, ChevronRight, Image } from "lucide-react";
+import { ChevronRight, Image } from "lucide-react";
 import React from "react";
-import type { Event, GalleryAlbum, NewsArticle } from "../backend";
+import type { GalleryAlbum, NewsArticle } from "../backend";
 import { ImageWithFallback } from "../components/parish/ImagePlaceholder";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useGalleryAlbums, useHomePageData } from "../hooks/useQueries";
@@ -33,16 +33,8 @@ const DEFAULT_SECTIONS = [
     customContent: "",
   },
   {
-    id: "wydarzenia",
-    order: 4n,
-    sectionType: "wydarzenia",
-    enabled: true,
-    customTitle: "",
-    customContent: "",
-  },
-  {
     id: "wspolnoty",
-    order: 5n,
+    order: 4n,
     sectionType: "wspolnoty",
     enabled: true,
     customTitle: "",
@@ -50,7 +42,7 @@ const DEFAULT_SECTIONS = [
   },
   {
     id: "galeria",
-    order: 6n,
+    order: 5n,
     sectionType: "galeria",
     enabled: true,
     customTitle: "",
@@ -58,7 +50,7 @@ const DEFAULT_SECTIONS = [
   },
   {
     id: "cytat",
-    order: 7n,
+    order: 6n,
     sectionType: "cytat_duchowy",
     enabled: true,
     customTitle: "",
@@ -66,7 +58,7 @@ const DEFAULT_SECTIONS = [
   },
   {
     id: "kontakt",
-    order: 8n,
+    order: 7n,
     sectionType: "kontakt",
     enabled: true,
     customTitle: "",
@@ -287,109 +279,6 @@ function AktualnosociSection({
   );
 }
 
-function WydarzeniaSection({
-  events,
-  isLoading,
-}: {
-  events?: Event[];
-  isLoading?: boolean;
-}) {
-  const upcoming = events?.filter((e) => e.published).slice(0, 3) || [];
-
-  return (
-    <SectionReveal>
-      <section className="py-24 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-end justify-between mb-12">
-            <div>
-              <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
-                Kalendarz parafialny
-              </p>
-              <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
-                Nadchodzące wydarzenia
-              </h2>
-            </div>
-            <Link
-              to="/wydarzenia"
-              className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans transition-colors"
-              data-ocid="home.wydarzenia.link"
-            >
-              Wszystkie wydarzenia <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {isLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-20 bg-card rounded-xl animate-pulse border border-border"
-                />
-              ))}
-            </div>
-          ) : upcoming.length === 0 ? (
-            <div
-              className="text-center py-16 border border-dashed border-border rounded-xl"
-              data-ocid="home.wydarzenia.empty_state"
-            >
-              <Calendar className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-              <p className="font-sans text-sm text-muted-foreground">
-                Brak zaplanowanych wydarzeń.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {upcoming.map((event, i) => (
-                <div
-                  key={event.id}
-                  className={`group flex items-center gap-6 bg-card rounded-xl p-6 border transition-all duration-300 hover:shadow-sm ${
-                    event.featured
-                      ? "border-primary/30 bg-primary/5"
-                      : "border-border"
-                  }`}
-                  data-ocid={`home.event.item.${i + 1}`}
-                >
-                  <div className="flex-shrink-0 w-14 h-14 bg-muted rounded-lg flex flex-col items-center justify-center">
-                    <span className="font-display text-xl font-light text-foreground leading-none">
-                      {new Date(event.date).getDate()}
-                    </span>
-                    <span className="font-sans text-xs text-muted-foreground uppercase tracking-wide">
-                      {new Date(event.date).toLocaleString("pl-PL", {
-                        month: "short",
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-display text-base font-light text-foreground leading-tight truncate">
-                        {event.title}
-                      </h3>
-                      {event.featured && (
-                        <span className="flex-shrink-0 text-xs font-sans bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                          Wyróżnione
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-sans text-sm text-muted-foreground mt-1 line-clamp-1">
-                      {event.description}
-                    </p>
-                  </div>
-                  {event.liturgicalColor && (
-                    <div
-                      className="flex-shrink-0 w-2 h-10 rounded-full opacity-60"
-                      style={{ backgroundColor: event.liturgicalColor }}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-    </SectionReveal>
-  );
-}
-
 function WspolnotySection() {
   return (
     <SectionReveal>
@@ -600,14 +489,6 @@ export function HomePage() {
           <AktualnosociSection
             key={section.id}
             news={homeData?.latestNews}
-            isLoading={isLoading}
-          />
-        );
-      case "wydarzenia":
-        return (
-          <WydarzeniaSection
-            key={section.id}
-            events={homeData?.upcomingEvents}
             isLoading={isLoading}
           />
         );

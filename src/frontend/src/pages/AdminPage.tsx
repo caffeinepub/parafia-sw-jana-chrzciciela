@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import React, { useState, useRef, useEffect } from "react";
 
 import {
@@ -28,8 +27,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  BookOpen,
   ChevronDown,
   ChevronUp,
+  ExternalLink,
   Eye,
   EyeOff,
   GripVertical,
@@ -45,7 +46,6 @@ import {
 import { toast } from "sonner";
 import {
   AppUserRole,
-  type Event,
   ExternalBlob,
   type GalleryAlbum,
   type GalleryPhoto,
@@ -57,14 +57,11 @@ import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddPhoto,
   useAllContentBlocks,
-  useAllEvents,
   useAllNews,
   useAssignRole,
   useCreateAlbum,
-  useCreateEvent,
   useCreateNews,
   useDeleteAlbum,
-  useDeleteEvent,
   useDeleteNews,
   useGalleryAlbums,
   useGetCallerUserProfile,
@@ -74,7 +71,6 @@ import {
   useSiteSettings,
   useUpdateAlbum,
   useUpdateContentBlock,
-  useUpdateEvent,
   useUpdateHomeSections,
   useUpdateNews,
   useUpdateSiteSettings,
@@ -635,422 +631,6 @@ function NewsTab() {
 }
 
 // ============================================================
-// EVENTS TAB  (rebuilt from scratch – freeze-proof)
-// ============================================================
-
-const LITURGICAL_COLORS = [
-  { value: "#7B2D2D", label: "Czerwony" },
-  { value: "#2D5A2D", label: "Zielony" },
-  { value: "#4B2D7B", label: "Fioletowy" },
-  { value: "#F5F0E8", label: "Biały" },
-  { value: "#B8941A", label: "Złoty" },
-];
-
-// Completely isolated form – never depends on any async query
-function EventForm({
-  initial,
-  isNew,
-  onBack,
-  onSaved,
-}: {
-  initial: Event;
-  isNew: boolean;
-  onBack: () => void;
-  onSaved: () => void;
-}) {
-  const create = useCreateEvent();
-  const update = useUpdateEvent();
-  const [form, setForm] = useState<Event>({ ...initial });
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    if (saving) return;
-    setSaving(true);
-    try {
-      if (isNew) {
-        await create.mutateAsync(form);
-        toast.success("Wydarzenie dodane");
-      } else {
-        await update.mutateAsync({ id: form.id, event: form });
-        toast.success("Wydarzenie zaktualizowane");
-      }
-      onSaved();
-    } catch {
-      toast.error(
-        "Nie udało się zapisać. Sprawdź połączenie i spróbuj ponownie.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-          disabled={saving}
-          className="font-sans font-light"
-          data-ocid="admin.event.back.button"
-        >
-          ← Wróć
-        </Button>
-        <h2 className="font-display text-xl font-light">
-          {isNew ? "Nowe wydarzenie" : "Edytuj wydarzenie"}
-        </h2>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label className="font-sans font-light">Tytuł</Label>
-            <Input
-              value={form.title}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, title: e.target.value }))
-              }
-              placeholder="Tytuł wydarzenia"
-              className="font-sans"
-              data-ocid="admin.event.title.input"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="font-sans font-light">Opis</Label>
-            <Textarea
-              value={form.description}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, description: e.target.value }))
-              }
-              placeholder="Opis wydarzenia..."
-              rows={5}
-              className="font-sans resize-none"
-              data-ocid="admin.event.description.textarea"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="font-sans font-light">Data</Label>
-            <Input
-              type="date"
-              value={form.date}
-              onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
-              className="font-sans"
-              data-ocid="admin.event.date.input"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="font-sans font-light">Kolor liturgiczny</Label>
-            <Select
-              value={form.liturgicalColor}
-              onValueChange={(v) =>
-                setForm((p) => ({ ...p, liturgicalColor: v }))
-              }
-            >
-              <SelectTrigger
-                className="font-sans"
-                data-ocid="admin.event.color.select"
-              >
-                <SelectValue placeholder="Wybierz kolor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="" className="font-sans">
-                  Brak
-                </SelectItem>
-                {LITURGICAL_COLORS.map((c) => (
-                  <SelectItem
-                    key={c.value}
-                    value={c.value}
-                    className="font-sans"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: c.value }}
-                      />
-                      {c.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-wrap gap-6">
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={form.published}
-                onCheckedChange={(v) =>
-                  setForm((p) => ({ ...p, published: v }))
-                }
-                data-ocid="admin.event.published.switch"
-              />
-              <Label className="font-sans font-light">Opublikowane</Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={form.featured}
-                onCheckedChange={(v) => setForm((p) => ({ ...p, featured: v }))}
-                data-ocid="admin.event.featured.switch"
-              />
-              <Label className="font-sans font-light">Wyróżnione</Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={form.pinned}
-                onCheckedChange={(v) => setForm((p) => ({ ...p, pinned: v }))}
-                data-ocid="admin.event.pinned.switch"
-              />
-              <Label className="font-sans font-light">Przypięte</Label>
-            </div>
-          </div>
-        </div>
-        <ImageUpload
-          label="Zdjęcie"
-          current={form.image}
-          onUpload={(blob) => setForm((p) => ({ ...p, image: blob }))}
-        />
-      </div>
-
-      <div className="flex gap-3">
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="font-sans font-light"
-          data-ocid="admin.event.save.submit_button"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          {saving ? "Zapisywanie..." : "Zapisz"}
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          disabled={saving}
-          className="font-sans font-light"
-          data-ocid="admin.event.cancel.button"
-        >
-          Anuluj
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// The list view – safe to show even while backend is loading
-function EventsList({
-  onNew,
-  onEdit,
-}: {
-  onNew: () => void;
-  onEdit: (event: Event) => void;
-}) {
-  const { data: events, isLoading, isError, refetch } = useAllEvents();
-  const del = useDeleteEvent();
-
-  const handleDelete = async (id: string) => {
-    try {
-      await del.mutateAsync(id);
-      toast.success("Wydarzenie usunięte");
-    } catch {
-      toast.error("Błąd usuwania");
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-light">Wydarzenia</h2>
-        <Button
-          onClick={onNew}
-          size="sm"
-          className="font-sans font-light"
-          data-ocid="admin.event.add.primary_button"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Nowe wydarzenie
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-3" data-ocid="admin.events.loading_state">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
-      ) : isError ? (
-        <div
-          className="text-center py-16 border border-dashed border-destructive/30 rounded-xl space-y-3"
-          data-ocid="admin.events.error_state"
-        >
-          <p className="font-sans text-sm text-muted-foreground">
-            Nie udało się załadować listy wydarzeń.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            className="font-sans font-light"
-          >
-            Spróbuj ponownie
-          </Button>
-        </div>
-      ) : !events || events.length === 0 ? (
-        <div
-          className="text-center py-16 border border-dashed border-border rounded-xl"
-          data-ocid="admin.events.empty_state"
-        >
-          <p className="font-sans text-sm text-muted-foreground">
-            Brak wydarzeń. Dodaj pierwsze klikając "Nowe wydarzenie".
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {events.map((event, i) => (
-            <div
-              key={event.id}
-              className="flex items-center gap-4 bg-card rounded-lg p-4 border border-border"
-              data-ocid={`admin.event.item.${i + 1}`}
-            >
-              {event.liturgicalColor && (
-                <div
-                  className="w-1.5 h-8 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: event.liturgicalColor }}
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-display text-sm font-light truncate">
-                    {event.title || "Bez tytułu"}
-                  </span>
-                  {event.featured && (
-                    <Badge className="text-xs font-sans font-light">
-                      Wyróżnione
-                    </Badge>
-                  )}
-                  <Badge
-                    variant={event.published ? "default" : "secondary"}
-                    className="text-xs font-sans font-light"
-                  >
-                    {event.published ? "Opublikowane" : "Szkic"}
-                  </Badge>
-                </div>
-                <p className="font-sans text-xs text-muted-foreground mt-0.5">
-                  {event.date}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => onEdit(event)}
-                  data-ocid={`admin.event.edit.edit_button.${i + 1}`}
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      data-ocid={`admin.event.delete.delete_button.${i + 1}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent data-ocid="admin.event.delete.dialog">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="font-display font-light">
-                        Usuń wydarzenie
-                      </AlertDialogTitle>
-                      <AlertDialogDescription className="font-sans">
-                        Ta operacja jest nieodwracalna.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel
-                        className="font-sans font-light"
-                        data-ocid="admin.event.delete.cancel_button"
-                      >
-                        Anuluj
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleDelete(event.id)}
-                        className="font-sans font-light bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        data-ocid="admin.event.delete.confirm_button"
-                      >
-                        Usuń
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-type EventsView =
-  | { kind: "list" }
-  | { kind: "new" }
-  | { kind: "edit"; event: Event };
-
-function makeEmptyEvent(): Event {
-  return {
-    id: crypto.randomUUID(),
-    title: "",
-    featured: false,
-    date: new Date().toISOString().split("T")[0],
-    published: false,
-    description: "",
-    pinned: false,
-    liturgicalColor: "",
-    image: ExternalBlob.fromURL(""),
-  };
-}
-
-function EventsTab() {
-  const queryClient = useQueryClient();
-  const [view, setView] = useState<EventsView>({ kind: "list" });
-
-  const handleNew = () => setView({ kind: "new" });
-  const handleEdit = (event: Event) => setView({ kind: "edit", event });
-  const handleBack = () => setView({ kind: "list" });
-  const handleSaved = () => {
-    queryClient.invalidateQueries({ queryKey: ["allEvents"] });
-    queryClient.invalidateQueries({ queryKey: ["publicEvents"] });
-    queryClient.invalidateQueries({ queryKey: ["publicEventsPaginated"] });
-    setView({ kind: "list" });
-  };
-
-  if (view.kind === "new") {
-    return (
-      <EventForm
-        initial={makeEmptyEvent()}
-        isNew={true}
-        onBack={handleBack}
-        onSaved={handleSaved}
-      />
-    );
-  }
-
-  if (view.kind === "edit") {
-    return (
-      <EventForm
-        initial={view.event}
-        isNew={false}
-        onBack={handleBack}
-        onSaved={handleSaved}
-      />
-    );
-  }
-
-  return <EventsList onNew={handleNew} onEdit={handleEdit} />;
-}
-
-// ============================================================
 // GALLERY TAB
 // ============================================================
 
@@ -1499,7 +1079,6 @@ const SECTION_LABELS: Record<string, string> = {
   hero: "Hero – Źródło",
   slowo_proboszcza: "Słowo Proboszcza",
   aktualnosci: "Aktualności",
-  wydarzenia: "Wydarzenia",
   wspolnoty: "Wspólnoty",
   galeria: "Galeria",
   cytat_duchowy: "Cytat Duchowy",
@@ -1532,16 +1111,8 @@ const DEFAULT_SECTIONS: HomeSection[] = [
     customContent: "",
   },
   {
-    id: "wydarzenia",
-    order: 4n,
-    sectionType: "wydarzenia",
-    enabled: true,
-    customTitle: "",
-    customContent: "",
-  },
-  {
     id: "wspolnoty",
-    order: 5n,
+    order: 4n,
     sectionType: "wspolnoty",
     enabled: true,
     customTitle: "",
@@ -1549,7 +1120,7 @@ const DEFAULT_SECTIONS: HomeSection[] = [
   },
   {
     id: "galeria",
-    order: 6n,
+    order: 5n,
     sectionType: "galeria",
     enabled: true,
     customTitle: "",
@@ -1557,7 +1128,7 @@ const DEFAULT_SECTIONS: HomeSection[] = [
   },
   {
     id: "cytat",
-    order: 7n,
+    order: 6n,
     sectionType: "cytat_duchowy",
     enabled: true,
     customTitle: "",
@@ -1565,7 +1136,7 @@ const DEFAULT_SECTIONS: HomeSection[] = [
   },
   {
     id: "kontakt",
-    order: 8n,
+    order: 7n,
     sectionType: "kontakt",
     enabled: true,
     customTitle: "",
@@ -1769,7 +1340,6 @@ function HomeSectionsTab() {
 const DEFAULT_NAV = [
   { name: "Aktualności", path: "/aktualnosci", visible: true },
   { name: "Liturgia", path: "/liturgia", visible: true },
-  { name: "Wydarzenia", path: "/wydarzenia", visible: true },
   { name: "Wspólnoty", path: "/wspolnoty", visible: true },
   { name: "Galeria", path: "/galeria", visible: true },
   { name: "Kancelaria", path: "/kancelaria", visible: true },
@@ -2124,6 +1694,67 @@ function RolesTab() {
 }
 
 // ============================================================
+// LITURGIA TAB
+// ============================================================
+
+function LiturgiaTab() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-light text-foreground">
+          Liturgia
+        </h2>
+      </div>
+
+      <p className="font-sans text-sm text-muted-foreground leading-relaxed">
+        Zarządzaj tygodniowym grafikiem intencji mszalnych i nabożeństw. Edycja
+        odbywa się bezpośrednio na stronie zakładki Liturgia.
+      </p>
+
+      <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <BookOpen className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <p className="font-display text-base font-light text-foreground">
+              Grafik liturgiczny
+            </p>
+            <p className="font-sans text-sm font-light text-muted-foreground">
+              Dodawaj Msze i nabożeństwa, edytuj godziny i intencje, generuj PDF
+              do wydruku.
+            </p>
+          </div>
+        </div>
+
+        <a
+          href="/liturgia"
+          onClick={(e) => {
+            e.preventDefault();
+            window.history.pushState({}, "", "/liturgia");
+            window.dispatchEvent(new PopStateEvent("popstate"));
+          }}
+          className="inline-flex items-center gap-2 font-sans text-sm font-light text-primary hover:text-primary/80 transition-colors"
+          data-ocid="admin.liturgia.link"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          Przejdź do zakładki Liturgia
+        </a>
+      </div>
+
+      <div className="bg-muted/40 rounded-xl p-4 border border-border/60">
+        <p className="font-sans text-xs text-muted-foreground leading-relaxed">
+          <strong className="font-medium text-foreground/70">Wskazówka:</strong>{" "}
+          Po zalogowaniu, na stronie Liturgii pojawią się przyciski edycji przy
+          każdym dniu tygodnia. Możesz dodawać Msze i nabożeństwa, usuwać wpisy
+          oraz generować piękny PDF do wywieszenia w kościele.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // MAIN ADMIN PAGE
 // ============================================================
 
@@ -2167,7 +1798,7 @@ export function AdminPage() {
               { value: "strona", label: "Strona Główna" },
               { value: "tresci", label: "Treści" },
               { value: "aktualnosci", label: "Aktualności" },
-              { value: "wydarzenia", label: "Wydarzenia" },
+              { value: "liturgia", label: "Liturgia" },
               { value: "galeria", label: "Galeria" },
               { value: "nawigacja", label: "Nawigacja" },
               { value: "ustawienia", label: "Ustawienia" },
@@ -2193,8 +1824,8 @@ export function AdminPage() {
           <TabsContent value="aktualnosci">
             <NewsTab />
           </TabsContent>
-          <TabsContent value="wydarzenia">
-            <EventsTab />
+          <TabsContent value="liturgia">
+            <LiturgiaTab />
           </TabsContent>
           <TabsContent value="galeria">
             <GalleryTab />

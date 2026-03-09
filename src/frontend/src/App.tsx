@@ -1,5 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
-import { BookOpen, Briefcase, Users } from "lucide-react";
+import { Briefcase, Users } from "lucide-react";
 import React from "react";
 import { Footer } from "./components/parish/Footer";
 import { LockButton } from "./components/parish/LockButton";
@@ -11,8 +11,8 @@ import { AktualnosociPage } from "./pages/AktualnosociPage";
 import { GaleriaPage } from "./pages/GaleriaPage";
 import { HomePage } from "./pages/HomePage";
 import { KontaktPage } from "./pages/KontaktPage";
+import { LiturgiaPage } from "./pages/LiturgiaPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
-import { WydarzeniaPage } from "./pages/WydarzeniaPage";
 import { Route, RouterProvider, Routes } from "./router";
 
 function AppLayout() {
@@ -25,17 +25,7 @@ function AppLayout() {
           <Route path="/" element={<HomePage />} />
           <Route path="/aktualnosci" element={<AktualnosociPage />} />
           <Route path="/aktualnosci/:id" element={<AktualnosociDetailPage />} />
-          <Route
-            path="/liturgia"
-            element={
-              <PlaceholderPage
-                title="Liturgia"
-                subtitle="Informacje o porządku Mszy świętych, czytaniach i sprawowaniu sakramentów."
-                icon={<BookOpen className="w-7 h-7" />}
-              />
-            }
-          />
-          <Route path="/wydarzenia" element={<WydarzeniaPage />} />
+          <Route path="/liturgia" element={<LiturgiaPage />} />
           <Route
             path="/wspolnoty"
             element={

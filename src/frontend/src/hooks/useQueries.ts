@@ -1,5 +1,6 @@
 import type { Principal } from "@icp-sdk/core/principal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import React from "react";
 import type {
   AppUserRole,
   Event,
@@ -9,8 +10,51 @@ import type {
   NewsArticle,
   SiteSettings,
   UserProfile,
+  backendInterface,
 } from "../backend";
 import { useActor } from "./useActor";
+
+// ============================================================
+// ACTOR REF PATTERN
+// ============================================================
+// useActor returns a reactive value; inside mutationFn (which runs outside
+// the React render cycle) we cannot call hooks. We track the latest actor
+// in a ref so mutations can wait for it to become available after login.
+
+function useActorRef() {
+  const { actor, isFetching } = useActor();
+  const actorRef = React.useRef<backendInterface | null>(null);
+  const fetchingRef = React.useRef<boolean>(true);
+
+  React.useEffect(() => {
+    actorRef.current = actor;
+    fetchingRef.current = isFetching;
+  }, [actor, isFetching]);
+
+  return { actorRef, fetchingRef, actor, isFetching };
+}
+
+/**
+ * Wait up to 10 seconds for the actor to become available after login.
+ * Polls the ref every 100 ms instead of failing immediately.
+ */
+async function waitForActor(
+  actorRef: React.MutableRefObject<backendInterface | null>,
+  fetchingRef: React.MutableRefObject<boolean>,
+): Promise<backendInterface> {
+  // Fast path: actor is already ready
+  if (actorRef.current) return actorRef.current;
+
+  for (let i = 0; i < 100; i++) {
+    await new Promise<void>((r) => setTimeout(r, 100));
+    if (actorRef.current) return actorRef.current;
+    // If isFetching stopped being true AND actor is still null → give up
+    if (!fetchingRef.current && !actorRef.current) {
+      throw new Error("Actor not available");
+    }
+  }
+  throw new Error("Actor timed out after 10 seconds");
+}
 
 // ============================================================
 // USER PROFILE
@@ -41,12 +85,12 @@ export function useGetCallerUserProfile() {
 }
 
 export function useSaveUserProfile() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (profile: UserProfile) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.saveCallerUserProfile(profile);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.saveCallerUserProfile(profile);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["currentUserProfile"] });
@@ -105,12 +149,12 @@ export function useAllNews() {
 }
 
 export function useCreateNews() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (article: NewsArticle) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.createNewsArticle(article);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.createNewsArticle(article);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["publicNews"] });
@@ -120,15 +164,15 @@ export function useCreateNews() {
 }
 
 export function useUpdateNews() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       id,
       article,
     }: { id: string; article: NewsArticle }) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.updateNewsArticle(id, article);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.updateNewsArticle(id, article);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["publicNews"] });
@@ -138,12 +182,12 @@ export function useUpdateNews() {
 }
 
 export function useDeleteNews() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.deleteNewsArticle(id);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.deleteNewsArticle(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["publicNews"] });
@@ -175,53 +219,73 @@ export function useAllEvents() {
     queryFn: async () => {
       if (!actor) return [];
       try {
-        return await actor.getAllEvents();
+        // Race against a 12-second timeout to prevent infinite hangs
+        const timeoutPromise = new Promise<Event[]>((_, reject) =>
+          setTimeout(() => reject(new Error("getAllEvents timed out")), 12000),
+        );
+        return await Promise.race([actor.getAllEvents(), timeoutPromise]);
       } catch {
         return [];
       }
     },
     enabled: !!actor && !isFetching,
     retry: 0,
+    staleTime: 0, // always refetch on mount so stale cache never masks backend issues
+    refetchOnMount: true,
   });
 }
 
 export function useCreateEvent() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (event: Event) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.createEvent(event);
+      const a = await waitForActor(actorRef, fetchingRef);
+      const timeoutPromise = new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error("createEvent timed out")), 15000),
+      );
+      await Promise.race([a.createEvent(event), timeoutPromise]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["publicEvents"] });
+      queryClient.invalidateQueries({ queryKey: ["allEvents"] });
+      queryClient.invalidateQueries({ queryKey: ["publicEventsPaginated"] });
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: ["allEvents"] });
     },
   });
 }
 
 export function useUpdateEvent() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, event }: { id: string; event: Event }) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.updateEvent(id, event);
+      const a = await waitForActor(actorRef, fetchingRef);
+      const timeoutPromise = new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error("updateEvent timed out")), 15000),
+      );
+      await Promise.race([a.updateEvent(id, event), timeoutPromise]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["publicEvents"] });
+      queryClient.invalidateQueries({ queryKey: ["allEvents"] });
+      queryClient.invalidateQueries({ queryKey: ["publicEventsPaginated"] });
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: ["allEvents"] });
     },
   });
 }
 
 export function useDeleteEvent() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.deleteEvent(id);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.deleteEvent(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["publicEvents"] });
@@ -247,12 +311,12 @@ export function useGalleryAlbums() {
 }
 
 export function useCreateAlbum() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (album: GalleryAlbum) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.createGalleryAlbum(album);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.createGalleryAlbum(album);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["galleryAlbums"] });
@@ -261,12 +325,12 @@ export function useCreateAlbum() {
 }
 
 export function useUpdateAlbum() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, album }: { id: string; album: GalleryAlbum }) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.updateGalleryAlbum(id, album);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.updateGalleryAlbum(id, album);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["galleryAlbums"] });
@@ -275,12 +339,12 @@ export function useUpdateAlbum() {
 }
 
 export function useDeleteAlbum() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.deleteGalleryAlbum(id);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.deleteGalleryAlbum(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["galleryAlbums"] });
@@ -289,15 +353,15 @@ export function useDeleteAlbum() {
 }
 
 export function useAddPhoto() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       albumId,
       photo,
     }: { albumId: string; photo: GalleryPhoto }) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.addPhoto(albumId, photo);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.addPhoto(albumId, photo);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["galleryAlbums"] });
@@ -306,15 +370,15 @@ export function useAddPhoto() {
 }
 
 export function useRemovePhoto() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       albumId,
       photoId,
     }: { albumId: string; photoId: string }) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.removePhoto(albumId, photoId);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.removePhoto(albumId, photoId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["galleryAlbums"] });
@@ -339,12 +403,12 @@ export function useHomeSections() {
 }
 
 export function useUpdateHomeSections() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (sections: HomeSection[]) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.updateHomeSections(sections);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.updateHomeSections(sections);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["homeSections"] });
@@ -369,12 +433,12 @@ export function useSiteSettings() {
 }
 
 export function useUpdateSiteSettings() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (settings: SiteSettings) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.updateSiteSettings(settings);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.updateSiteSettings(settings);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["siteSettings"] });
@@ -404,15 +468,15 @@ export function useListAllRoles() {
 }
 
 export function useAssignRole() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       user,
       role,
     }: { user: Principal; role: AppUserRole }) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.assignAppRole(user, role);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.assignAppRole(user, role);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allRoles"] });
@@ -437,12 +501,12 @@ export function useAllContentBlocks() {
 }
 
 export function useUpdateContentBlock() {
-  const { actor } = useActor();
+  const { actorRef, fetchingRef } = useActorRef();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ key, content }: { key: string; content: string }) => {
-      if (!actor) throw new Error("Actor not available");
-      await actor.updateContentBlock(key, content);
+      const a = await waitForActor(actorRef, fetchingRef);
+      await a.updateContentBlock(key, content);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contentBlocks"] });
