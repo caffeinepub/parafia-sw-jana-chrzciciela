@@ -93,10 +93,31 @@ actor {
     };
   };
 
+  // Prayer Intention for Kaplica section
+  public type PrayerIntention = {
+    id : Text;
+    name : Text;       // empty = anonymous
+    title : Text;
+    content : Text;
+    email : Text;      // optional, for notifications
+    visibility : Text; // "public" | "private"
+    status : Text;     // "pending" | "approved" | "private" | "assigned" | "rejected" | "archived"
+    date : Text;
+    prayerCount : Nat;
+    featured : Bool;   // "swieca dnia"
+  };
+
+  module PrayerIntention {
+    public func compare(a : PrayerIntention, b : PrayerIntention) : Order.Order {
+      Text.compare(b.date, a.date); // newest first
+    };
+  };
+
   let newsArticles = Map.empty<Text, NewsArticle>();
   let events = Map.empty<Text, Event>();
   let galleryAlbums = Map.empty<Text, GalleryAlbum>();
   let communities = Map.empty<Text, Community>();
+  let prayerIntentions = Map.empty<Text, PrayerIntention>();
 
   public type HomeSection = {
     id : Text;
@@ -456,11 +477,9 @@ actor {
       case (null) { Runtime.trap("Community not found") };
       case (?community) {
         let newPhotos = community.photos.filter(func(_ : Storage.ExternalBlob) : Bool {
-          // filter by position -- rebuild without the removed index
-          true // placeholder; actual filtering done on frontend
+          true
         });
         let _ = newPhotos;
-        // Remove by rebuilding array without the index
         var i : Nat = 0;
         let filtered = community.photos.filter(func(_ : Storage.ExternalBlob) : Bool {
           let keep = i != photoIndex;
@@ -588,5 +607,78 @@ actor {
 
   public query func listLiturgyWeeks() : async [LiturgyWeek] {
     liturgyWeeks.values().toArray().sort();
+  };
+
+  // Prayer Intentions (Kaplica)
+  public shared func submitPrayerIntention(intention : PrayerIntention) : async () {
+    // Public - no authentication required
+    prayerIntentions.add(intention.id, intention);
+  };
+
+  public query ({ caller }) func getAllPrayerIntentions() : async [PrayerIntention] {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    prayerIntentions.values().toArray().sort();
+  };
+
+  public query func getPublicPrayerIntentions() : async [PrayerIntention] {
+    let visible = prayerIntentions.values().toArray().filter(
+      func(i : PrayerIntention) : Bool {
+        i.status == "approved" or i.status == "assigned";
+      }
+    );
+    visible.sort();
+  };
+
+  public shared ({ caller }) func updatePrayerIntentionStatus(id : Text, status : Text) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    switch (prayerIntentions.get(id)) {
+      case (null) { Runtime.trap("Not found") };
+      case (?intention) {
+        let updated = { intention with status = status };
+        prayerIntentions.add(id, updated);
+      };
+    };
+  };
+
+  public shared ({ caller }) func updatePrayerIntention(id : Text, intention : PrayerIntention) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    prayerIntentions.add(id, intention);
+  };
+
+  public shared ({ caller }) func deletePrayerIntention(id : Text) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    prayerIntentions.remove(id);
+  };
+
+  public shared func incrementPrayerCount(id : Text) : async () {
+    // Public - no authentication required
+    switch (prayerIntentions.get(id)) {
+      case (null) { Runtime.trap("Not found") };
+      case (?intention) {
+        let updated = { intention with prayerCount = intention.prayerCount + 1 };
+        prayerIntentions.add(id, updated);
+      };
+    };
+  };
+
+  public shared ({ caller }) func setFeaturedPrayerIntention(id : Text, featured : Bool) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    switch (prayerIntentions.get(id)) {
+      case (null) { Runtime.trap("Not found") };
+      case (?intention) {
+        let updated = { intention with featured = featured };
+        prayerIntentions.add(id, updated);
+      };
+    };
   };
 };

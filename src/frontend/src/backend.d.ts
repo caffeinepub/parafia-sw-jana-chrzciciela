@@ -94,6 +94,18 @@ export interface UserProfile {
     name: string;
     role?: AppUserRole;
 }
+export interface PrayerIntention {
+    id: string;
+    name: string;
+    title: string;
+    content: string;
+    email: string;
+    visibility: string;
+    status: string;
+    date: string;
+    prayerCount: bigint;
+    featured: boolean;
+}
 export enum AppUserRole {
     admin = "admin",
     moderator = "moderator",
@@ -148,4 +160,13 @@ export interface backendInterface {
     updateHomeSections(sections: Array<HomeSection>): Promise<void>;
     updateNewsArticle(id: string, article: NewsArticle): Promise<void>;
     updateSiteSettings(settings: SiteSettings): Promise<void>;
+    // Prayer Intentions (Kaplica)
+    submitPrayerIntention(intention: PrayerIntention): Promise<void>;
+    getAllPrayerIntentions(): Promise<Array<PrayerIntention>>;
+    getPublicPrayerIntentions(): Promise<Array<PrayerIntention>>;
+    updatePrayerIntentionStatus(id: string, status: string): Promise<void>;
+    updatePrayerIntention(id: string, intention: PrayerIntention): Promise<void>;
+    deletePrayerIntention(id: string): Promise<void>;
+    incrementPrayerCount(id: string): Promise<void>;
+    setFeaturedPrayerIntention(id: string, featured: boolean): Promise<void>;
 }

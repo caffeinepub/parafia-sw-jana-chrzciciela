@@ -15,6 +15,7 @@ const DEFAULT_NAV: NavItem[] = [
   { name: "Wspólnoty", path: "/wspolnoty", visible: true },
   { name: "Galeria", path: "/galeria", visible: true },
   { name: "Kancelaria", path: "/kancelaria", visible: true },
+  { name: "Kaplica", path: "/kaplica", visible: true },
   { name: "Kontakt", path: "/kontakt", visible: true },
 ];
 
