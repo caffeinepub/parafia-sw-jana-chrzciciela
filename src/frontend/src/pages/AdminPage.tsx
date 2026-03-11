@@ -75,6 +75,7 @@ import {
   useUpdateNews,
   useUpdateSiteSettings,
 } from "../hooks/useQueries";
+import { WspolnotyTab } from "./AdminWspolnotyTab";
 
 // ============================================================
 // ACCESS GUARD
@@ -1802,6 +1803,7 @@ export function AdminPage() {
               { value: "galeria", label: "Galeria" },
               { value: "nawigacja", label: "Nawigacja" },
               { value: "ustawienia", label: "Ustawienia" },
+              { value: "wspolnoty", label: "Wspólnoty" },
               { value: "role", label: "Role" },
             ].map((tab) => (
               <TabsTrigger
@@ -1835,6 +1837,9 @@ export function AdminPage() {
           </TabsContent>
           <TabsContent value="ustawienia">
             <SettingsTab />
+          </TabsContent>
+          <TabsContent value="wspolnoty">
+            <WspolnotyTab />
           </TabsContent>
           <TabsContent value="role">
             <RolesTab />

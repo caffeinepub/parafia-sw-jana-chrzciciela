@@ -1,5 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
-import { Briefcase, Users } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import React from "react";
 import { Footer } from "./components/parish/Footer";
 import { LockButton } from "./components/parish/LockButton";
@@ -13,6 +13,7 @@ import { HomePage } from "./pages/HomePage";
 import { KontaktPage } from "./pages/KontaktPage";
 import { LiturgiaPage } from "./pages/LiturgiaPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { WspolnotyPage } from "./pages/WspolnotyPage";
 import { Route, RouterProvider, Routes } from "./router";
 
 function AppLayout() {
@@ -26,16 +27,7 @@ function AppLayout() {
           <Route path="/aktualnosci" element={<AktualnosociPage />} />
           <Route path="/aktualnosci/:id" element={<AktualnosociDetailPage />} />
           <Route path="/liturgia" element={<LiturgiaPage />} />
-          <Route
-            path="/wspolnoty"
-            element={
-              <PlaceholderPage
-                title="Wspólnoty"
-                subtitle="Poznaj grupy i wspólnoty działające w naszej parafii."
-                icon={<Users className="w-7 h-7" />}
-              />
-            }
-          />
+          <Route path="/wspolnoty" element={<WspolnotyPage />} />
           <Route path="/galeria" element={<GaleriaPage />} />
           <Route
             path="/kancelaria"

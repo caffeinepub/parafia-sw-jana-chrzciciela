@@ -57,6 +57,21 @@ const DAY_NAMES = [
   "Niedziela",
 ];
 
+const MONTH_NAMES_SHORT = [
+  "sty",
+  "lut",
+  "mar",
+  "kwi",
+  "maj",
+  "cze",
+  "lip",
+  "sie",
+  "wrz",
+  "paź",
+  "lis",
+  "gru",
+];
+
 const SERVICE_TYPES = [
   { value: "adoracja", label: "Adoracja Najświętszego Sakramentu" },
   { value: "rozaniec", label: "Różaniec" },
@@ -305,11 +320,11 @@ function EntryRow({ entry, index, isAdmin, onDelete }: EntryRowProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -12 }}
       transition={{ duration: 0.25 }}
-      className="flex items-start gap-4 py-4 group"
+      className="flex items-start gap-5 py-4 group"
     >
       {/* Time column */}
       <div className="w-16 shrink-0 pt-0.5">
-        <span className="font-display text-2xl lg:text-3xl font-light tracking-widest text-foreground leading-none tabular-nums">
+        <span className="font-sans text-sm lg:text-base font-semibold tracking-wider text-foreground/90 leading-none tabular-nums">
           {entry.time}
         </span>
       </div>
@@ -349,6 +364,7 @@ function EntryRow({ entry, index, isAdmin, onDelete }: EntryRowProps) {
 interface DayBlockProps {
   day: LiturgyDay;
   dayIndex: number;
+  date?: Date;
   isAdmin: boolean;
   onAddMass: () => void;
   onAddService: () => void;
@@ -358,20 +374,32 @@ interface DayBlockProps {
 function DayBlock({
   day,
   dayIndex,
+  date,
   isAdmin,
   onAddMass,
   onAddService,
   onDeleteEntry,
 }: DayBlockProps) {
   const entries = [...day.entries].sort((a, b) => a.time.localeCompare(b.time));
+  const isSunday = dayIndex === 6;
 
   return (
-    <div className="py-6" data-ocid={`liturgia.day.item.${dayIndex + 1}`}>
+    <div
+      className={`py-6 ${isSunday ? "rounded-lg px-4 -mx-4 bg-accent/30" : ""}`}
+      data-ocid={`liturgia.day.item.${dayIndex + 1}`}
+    >
       {/* Day header */}
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-sans text-xs font-semibold tracking-[0.2em] uppercase text-muted-foreground">
-          {DAY_NAMES[dayIndex]}
-        </h3>
+        <div className="flex items-baseline gap-2.5">
+          <h3 className="font-sans text-xs font-semibold tracking-[0.2em] uppercase text-foreground/70">
+            {DAY_NAMES[dayIndex]}
+          </h3>
+          {date && (
+            <span className="font-sans text-xs font-light text-muted-foreground/60">
+              {date.getDate()} {MONTH_NAMES_SHORT[date.getMonth()]}
+            </span>
+          )}
+        </div>
 
         {isAdmin && (
           <div className="flex gap-2">
@@ -1037,19 +1065,19 @@ export function LiturgiaPage() {
             className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
           >
             {/* Week navigation */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={handlePrevWeek}
                 disabled={isLoading}
-                className="w-8 h-8 rounded-full flex items-center justify-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all disabled:opacity-40"
+                className="w-9 h-9 rounded-full flex items-center justify-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-all disabled:opacity-40"
                 aria-label="Poprzedni tydzień"
                 data-ocid="liturgia.prev_week.button"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              <p className="font-sans text-sm font-light text-muted-foreground whitespace-nowrap">
+              <p className="font-sans text-sm font-medium text-foreground/80 whitespace-nowrap tracking-wide">
                 {formatDate(weekStart)} – {formatDate(weekEnd)}
               </p>
 
@@ -1057,7 +1085,7 @@ export function LiturgiaPage() {
                 type="button"
                 onClick={handleNextWeek}
                 disabled={isLoading}
-                className="w-8 h-8 rounded-full flex items-center justify-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all disabled:opacity-40"
+                className="w-9 h-9 rounded-full flex items-center justify-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-all disabled:opacity-40"
                 aria-label="Następny tydzień"
                 data-ocid="liturgia.next_week.button"
               >
@@ -1108,11 +1136,15 @@ export function LiturgiaPage() {
           >
             {sortedDays.map((day) => {
               const dayIdx = Number(day.dayIndex);
+              // Compute the calendar date for this day:
+              // weekStart is Monday (dayIndex 0), so add dayIdx days
+              const dayDate = new Date(weekStart.getTime() + dayIdx * 86400000);
               return (
                 <DayBlock
                   key={dayIdx}
                   day={day}
                   dayIndex={dayIdx}
+                  date={dayDate}
                   isAdmin={isAdmin}
                   onAddMass={() => setMassDialog(dayIdx)}
                   onAddService={() => setServiceDialog(dayIdx)}

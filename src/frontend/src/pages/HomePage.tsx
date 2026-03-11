@@ -5,6 +5,7 @@ import { ImageWithFallback } from "../components/parish/ImagePlaceholder";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useGalleryAlbums, useHomePageData } from "../hooks/useQueries";
 import { Link } from "../router";
+import { useAllCommunities } from "./WspolnotyPage";
 
 // Default sections when backend has no data
 const DEFAULT_SECTIONS = [
@@ -280,20 +281,90 @@ function AktualnosociSection({
 }
 
 function WspolnotySection() {
+  const { data: communities = [], isLoading } = useAllCommunities();
+  const first3 = communities.slice(0, 3);
   return (
     <SectionReveal>
       <section className="py-24 px-4 bg-muted/20">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
-            Wspólnoty
-          </p>
-          <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground mb-6">
-            Nasze wspólnoty parafialne
-          </h2>
-          <p className="font-sans text-muted-foreground max-w-xl mx-auto">
-            Sekcja w przygotowaniu. Wkrótce znajdziesz tu informacje o
-            wszystkich wspólnotach działających w naszej parafii.
-          </p>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-end justify-between mb-12">
+            <div>
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
+                Wspólnoty
+              </p>
+              <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
+                Nasze wspólnoty parafialne
+              </h2>
+            </div>
+            <Link
+              to="/wspolnoty"
+              className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans transition-colors"
+              data-ocid="home.wspolnoty.link"
+            >
+              Wszystkie wspólnoty <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {Array.from({ length: 3 }).map((_item, i) => (
+                <div
+                  // biome-ignore lint/suspicious/noArrayIndexKey: skeleton list
+                  key={`sk-${i}`}
+                  className="rounded-2xl overflow-hidden border border-border bg-card"
+                >
+                  <div className="aspect-[4/3] bg-muted/40" />
+                  <div className="p-6 space-y-3">
+                    <div className="h-5 w-2/3 bg-muted/40 rounded" />
+                    <div className="h-4 w-full bg-muted/30 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : first3.length === 0 ? (
+            <p className="font-sans text-sm text-muted-foreground text-center py-8">
+              Wspólnoty zostaną wkrótce dodane przez administratora.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {first3.map((community) => {
+                const imageUrl = community.heroImageUrl;
+                return (
+                  <Link
+                    key={community.id}
+                    to="/wspolnoty"
+                    className="group bg-card border border-border rounded-2xl overflow-hidden hover:shadow-lg transition-shadow duration-300"
+                    data-ocid="home.wspolnoty.card"
+                  >
+                    <div className="aspect-[4/3] bg-gradient-to-br from-muted/40 to-muted/80 relative overflow-hidden">
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={community.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="font-display text-4xl font-light text-primary/20">
+                            {community.name.charAt(0)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-display text-lg font-light text-foreground mb-1">
+                        {community.name}
+                      </h3>
+                      {community.shortDescription && (
+                        <p className="font-sans text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                          {community.shortDescription}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
     </SectionReveal>

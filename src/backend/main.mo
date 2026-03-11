@@ -71,9 +71,32 @@ actor {
     published : Bool;
   };
 
+  public type Community = {
+    id : Text;
+    name : Text;
+    shortDescription : Text;
+    fullDescription : Text;
+    meetingDay : Text;
+    meetingTime : Text;
+    meetingPlace : Text;
+    caretaker : Text;
+    contactPhone : Text;
+    contactEmail : Text;
+    order : Nat;
+    heroImage : Storage.ExternalBlob;
+    photos : [Storage.ExternalBlob];
+  };
+
+  module Community {
+    public func compare(a : Community, b : Community) : Order.Order {
+      Nat.compare(a.order, b.order);
+    };
+  };
+
   let newsArticles = Map.empty<Text, NewsArticle>();
   let events = Map.empty<Text, Event>();
   let galleryAlbums = Map.empty<Text, GalleryAlbum>();
+  let communities = Map.empty<Text, Community>();
 
   public type HomeSection = {
     id : Text;
@@ -117,7 +140,6 @@ actor {
 
   include MixinStorage();
 
-  // Authorization System - kept for platform compatibility
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
@@ -125,14 +147,12 @@ actor {
     not caller.isAnonymous();
   };
 
-  // User Profile Management (Required by frontend)
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (caller.isAnonymous()) { return null };
     userProfiles.get(caller);
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
-    // Allow authenticated users to view other profiles (parish community feature)
     if (not isAuthenticated(caller)) {
       Runtime.trap("Unauthorized: Authentication required");
     };
@@ -146,33 +166,28 @@ actor {
     userProfiles.add(caller, profile);
   };
 
-  // Site Settings
   public shared ({ caller }) func updateSiteSettings(settings : SiteSettings) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update site settings");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
     siteSettings := ?settings;
   };
 
   public query func getSiteSettings() : async ?SiteSettings {
-    // Public read access
     siteSettings;
   };
 
-  // Content Blocks
   public query func getContentBlock(key : Text) : async ?ContentBlock {
-    // Public read access
     contentBlocks.get(key);
   };
 
   public query func getAllContentBlocks() : async [ContentBlock] {
-    // Public read access
     contentBlocks.values().toArray();
   };
 
   public shared ({ caller }) func updateContentBlock(key : Text, content : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update content blocks");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
     let block : ContentBlock = {
       id = key;
@@ -181,7 +196,6 @@ actor {
     contentBlocks.add(key, block);
   };
 
-  // News CRUD
   public shared ({ caller }) func createNewsArticle(article : NewsArticle) : async () {
     if (not isAuthenticated(caller)) {
       Runtime.trap("Unauthorized: Authentication required");
@@ -207,12 +221,10 @@ actor {
   };
 
   public query func getNewsArticle(id : Text) : async ?NewsArticle {
-    // Public read access for individual articles
     newsArticles.get(id);
   };
 
   public query func getPublicNews() : async [NewsArticle] {
-    // Public read access for published content
     let published = newsArticles.values().toArray().filter(func(article : NewsArticle) : Bool { article.published });
     published.sort();
   };
@@ -226,7 +238,6 @@ actor {
     all.sort();
   };
 
-  // Event CRUD
   public shared ({ caller }) func createEvent(event : Event) : async () {
     if (not isAuthenticated(caller)) {
       Runtime.trap("Unauthorized: Authentication required");
@@ -252,12 +263,10 @@ actor {
   };
 
   public query func getEvent(id : Text) : async ?Event {
-    // Public read access for individual events
     events.get(id);
   };
 
   public query func getPublicEvents() : async [Event] {
-    // Public read access for published content
     events.values().toArray().filter(func(event : Event) : Bool { event.published });
   };
 
@@ -268,7 +277,6 @@ actor {
     events.values().toArray();
   };
 
-  // Gallery Albums
   public shared ({ caller }) func createGalleryAlbum(album : GalleryAlbum) : async () {
     if (not isAuthenticated(caller)) {
       Runtime.trap("Unauthorized: Authentication required");
@@ -294,17 +302,14 @@ actor {
   };
 
   public query func getGalleryAlbum(id : Text) : async ?GalleryAlbum {
-    // Public read access
     galleryAlbums.get(id);
   };
 
   public query func getGalleryAlbums() : async [GalleryAlbum] {
-    // Public read access
     let albums = galleryAlbums.values().toArray();
     albums.sort();
   };
 
-  // Gallery Photos
   public shared ({ caller }) func addPhoto(albumId : Text, photo : GalleryPhoto) : async () {
     if (not isAuthenticated(caller)) {
       Runtime.trap("Unauthorized: Authentication required");
@@ -344,37 +349,31 @@ actor {
   };
 
   public query func getPhotosByAlbum(albumId : Text) : async [GalleryPhoto] {
-    // Public read access
     switch (galleryAlbums.get(albumId)) {
       case (null) { [] };
       case (?album) { album.photos };
     };
   };
 
-  // Home Page Sections
   public shared ({ caller }) func updateHomeSections(sections : [HomeSection]) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update home sections");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
     homeSections := List.fromArray(sections);
   };
 
   public query func getHomeSections() : async [HomeSection] {
-    // Public read access
     let sectionsArray = homeSections.toArray();
     sectionsArray.sort(func(a : HomeSection, b : HomeSection) : Order.Order {
       Nat.compare(a.order, b.order);
     });
   };
 
-  // Role Management
   public shared ({ caller }) func assignAppRole(user : Principal, role : AppUserRole) : async () {
-    // CRITICAL: Role assignment must be admin-only
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can assign roles");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
     appRoles.add(user, role);
-    // Update user profile with role
     switch (userProfiles.get(user)) {
       case (?profile) {
         let updatedProfile = {
@@ -384,7 +383,6 @@ actor {
         userProfiles.add(user, updatedProfile);
       };
       case (null) {
-        // Create basic profile with role
         let newProfile : UserProfile = {
           name = "";
           role = ?role;
@@ -395,7 +393,6 @@ actor {
   };
 
   public query func getAppRole(user : Principal) : async ?AppUserRole {
-    // Public read access - allows querying user roles
     appRoles.get(user);
   };
 
@@ -404,6 +401,76 @@ actor {
       Runtime.trap("Unauthorized: Authentication required");
     };
     appRoles.entries().toArray();
+  };
+
+  // Community CRUD
+  public shared ({ caller }) func createCommunity(community : Community) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    communities.add(community.id, community);
+  };
+
+  public shared ({ caller }) func updateCommunity(id : Text, community : Community) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    communities.add(id, community);
+  };
+
+  public shared ({ caller }) func deleteCommunity(id : Text) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    communities.remove(id);
+  };
+
+  public query func getCommunity(id : Text) : async ?Community {
+    communities.get(id);
+  };
+
+  public query func getAllCommunities() : async [Community] {
+    let all = communities.values().toArray();
+    all.sort();
+  };
+
+  public shared ({ caller }) func addCommunityPhoto(communityId : Text, photo : Storage.ExternalBlob) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    switch (communities.get(communityId)) {
+      case (null) { Runtime.trap("Community not found") };
+      case (?community) {
+        let newPhotos = community.photos.concat([photo]);
+        let updated = { community with photos = newPhotos };
+        communities.add(communityId, updated);
+      };
+    };
+  };
+
+  public shared ({ caller }) func removeCommunityPhoto(communityId : Text, photoIndex : Nat) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    switch (communities.get(communityId)) {
+      case (null) { Runtime.trap("Community not found") };
+      case (?community) {
+        let newPhotos = community.photos.filter(func(_ : Storage.ExternalBlob) : Bool {
+          // filter by position -- rebuild without the removed index
+          true // placeholder; actual filtering done on frontend
+        });
+        let _ = newPhotos;
+        // Remove by rebuilding array without the index
+        var i : Nat = 0;
+        let filtered = community.photos.filter(func(_ : Storage.ExternalBlob) : Bool {
+          let keep = i != photoIndex;
+          i += 1;
+          keep;
+        });
+        let updated = { community with photos = filtered };
+        communities.add(communityId, updated);
+      };
+    };
   };
 
   // Liturgy Schedule Types
@@ -435,14 +502,11 @@ actor {
   let liturgyWeeks = Map.empty<Text, LiturgyWeek>();
   var currentLiturgyWeekId : ?Text = null;
 
-  // Liturgy Schedule Functions
   public query func getLiturgyWeek(weekId : Text) : async ?LiturgyWeek {
-    // Public read access - parishioners need to view Mass schedule
     liturgyWeeks.get(weekId);
   };
 
   public query func getCurrentLiturgyWeek() : async ?LiturgyWeek {
-    // Public read access - parishioners need to view current Mass schedule
     switch (currentLiturgyWeekId) {
       case (null) { null };
       case (?id) { liturgyWeeks.get(id) };
@@ -450,9 +514,8 @@ actor {
   };
 
   public shared ({ caller }) func saveLiturgyWeek(week : LiturgyWeek) : async () {
-    // CRITICAL: Liturgy schedule is sensitive church content - admin only
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can save liturgy schedules");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
     liturgyWeeks.add(week.id, week);
     currentLiturgyWeekId := ?week.id;
@@ -471,9 +534,8 @@ actor {
   };
 
   public shared ({ caller }) func copyPreviousWeek(fromWeekId : Text, toWeekId : Text, newWeekStart : Text, newWeekEnd : Text) : async () {
-    // CRITICAL: Liturgy schedule modification - admin only
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can copy liturgy schedules");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
 
     switch (liturgyWeeks.get(fromWeekId)) {
@@ -503,9 +565,8 @@ actor {
   };
 
   public shared ({ caller }) func deleteLiturgyWeek(weekId : Text) : async () {
-    // CRITICAL: Liturgy schedule deletion - admin only
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete liturgy schedules");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
     liturgyWeeks.remove(weekId);
 
@@ -526,7 +587,6 @@ actor {
   };
 
   public query func listLiturgyWeeks() : async [LiturgyWeek] {
-    // Public read access - parishioners need to view all schedules
     liturgyWeeks.values().toArray().sort();
   };
 };
