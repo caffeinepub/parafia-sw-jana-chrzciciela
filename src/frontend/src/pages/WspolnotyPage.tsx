@@ -135,25 +135,6 @@ export function useAllCommunities() {
   });
 }
 
-export function useCommunityGallery(communityId: string) {
-  const { actor, isFetching } = useActor();
-  return useQuery<any[]>({
-    queryKey: ["communityGallery", communityId],
-    queryFn: async () => {
-      if (!actor) return [];
-      try {
-        const albumId = `__cg_${communityId}`;
-        const photos = await (actor as any).getPhotosByAlbum(albumId);
-        return Array.isArray(photos) ? photos : [];
-      } catch {
-        return [];
-      }
-    },
-    enabled: !!actor && !isFetching && !!communityId,
-    staleTime: 0,
-  });
-}
-
 // ============================================================
 // HERO
 // ============================================================
@@ -454,68 +435,6 @@ function CommunityCard({
 }
 
 // ============================================================
-// DETAIL PANEL GALLERY
-// ============================================================
-
-function CommunityGalleryView({ communityId }: { communityId: string }) {
-  const { data: photos = [], isLoading } = useCommunityGallery(communityId);
-
-  if (isLoading) {
-    return (
-      <div
-        className="grid grid-cols-2 gap-2 mt-4"
-        data-ocid="wspolnoty.gallery.loading_state"
-      >
-        {Array.from({ length: 4 }).map((_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
-          <Skeleton key={`gsk-${i}`} className="aspect-square rounded-xl" />
-        ))}
-      </div>
-    );
-  }
-
-  if (photos.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="space-y-3">
-      <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground">
-        Galeria
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        {photos.map((photo: any, i: number) => {
-          let src = "";
-          try {
-            src =
-              typeof photo.blob?.getDirectURL === "function"
-                ? photo.blob.getDirectURL()
-                : (photo.blob?.url ?? photo.url ?? "");
-          } catch {
-            src = "";
-          }
-          if (!src) return null;
-          return (
-            <div
-              // biome-ignore lint/suspicious/noArrayIndexKey: gallery display
-              key={`gp-${i}`}
-              className="aspect-square rounded-xl overflow-hidden bg-muted/30"
-            >
-              <img
-                src={src}
-                alt={photo.caption ?? `Zdjęcie ${i + 1}`}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
 // DETAIL PANEL
 // ============================================================
 
@@ -526,156 +445,154 @@ function DetailPanel({
   community: Community | null;
   onClose: () => void;
 }) {
+  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
   return (
     <AnimatePresence>
       {community && (
         <>
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
             onClick={onClose}
+            data-ocid="wspolnoty.panel"
           />
+          {/* Slide-in panel */}
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 h-full z-50 w-full max-w-lg bg-card shadow-2xl overflow-y-auto"
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-background border-l border-border shadow-2xl z-50 overflow-y-auto"
             data-ocid="wspolnoty.detail.panel"
           >
-            <div className="sticky top-0 z-10 bg-card/90 backdrop-blur-sm border-b border-border flex items-center justify-between px-6 py-4">
-              <span className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Wspólnota
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="rounded-full"
-                data-ocid="wspolnoty.detail.close_button"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <div className="p-6 space-y-8">
-              {community.heroImageUrl ? (
-                <div className="rounded-2xl overflow-hidden aspect-video">
-                  <img
-                    src={community.heroImageUrl}
-                    alt={community.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="rounded-2xl aspect-video bg-gradient-to-br from-muted/40 to-muted/70 flex items-center justify-center">
-                  <span className="font-display text-4xl font-light text-muted-foreground/30">
-                    {community.name.charAt(0)}
-                  </span>
-                </div>
-              )}
-              <div>
-                <h2 className="font-display text-3xl font-extralight text-foreground">
-                  {community.name}
-                </h2>
-                {community.shortDescription && (
-                  <p className="font-sans text-sm text-primary/70 mt-2">
-                    {community.shortDescription}
-                  </p>
-                )}
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted/50 transition-colors z-10"
+              data-ocid="wspolnoty.detail.close_button"
+            >
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
+
+            {/* Hero image */}
+            {community.heroImageUrl && (
+              <div className="aspect-[16/9] relative overflow-hidden bg-muted/30">
+                <img
+                  src={community.heroImageUrl}
+                  alt={community.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
               </div>
+            )}
+
+            <div className="p-6 space-y-6">
+              {/* Name */}
+              <h2 className="font-display text-2xl font-light text-foreground pr-10">
+                {community.name}
+              </h2>
+
+              {/* Short description */}
+              {community.shortDescription && (
+                <p className="font-sans text-sm text-muted-foreground leading-relaxed">
+                  {community.shortDescription}
+                </p>
+              )}
+
+              {/* Divider */}
+              <div className="w-12 h-px bg-primary/30" />
+
+              {/* Full description */}
               {community.fullDescription && (
-                <p className="font-sans text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                <p className="font-sans text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
                   {community.fullDescription}
                 </p>
               )}
-              <div className="space-y-3">
-                {community.meetingDay && (
-                  <div className="flex items-start gap-3">
-                    <Calendar className="w-4 h-4 text-primary/60 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-sans text-xs uppercase tracking-wide text-muted-foreground">
-                        Spotkania
-                      </p>
-                      <p className="font-sans text-sm text-foreground">
-                        {[community.meetingDay, community.meetingTime]
-                          .filter(Boolean)
-                          .join(" \u00B7 ")}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {community.meetingPlace && (
-                  <div className="flex items-start gap-3">
-                    <MapPin className="w-4 h-4 text-primary/60 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-sans text-xs uppercase tracking-wide text-muted-foreground">
-                        Miejsce
-                      </p>
-                      <p className="font-sans text-sm text-foreground">
-                        {community.meetingPlace}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {community.caretaker && (
-                  <div className="flex items-start gap-3">
-                    <User className="w-4 h-4 text-primary/60 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-sans text-xs uppercase tracking-wide text-muted-foreground">
-                        Opiekun
-                      </p>
-                      <p className="font-sans text-sm text-foreground">
-                        {community.caretaker}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {community.contactPhone && (
-                  <div className="flex items-start gap-3">
-                    <Phone className="w-4 h-4 text-primary/60 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-sans text-xs uppercase tracking-wide text-muted-foreground">
-                        Telefon
-                      </p>
-                      <a
-                        href={`tel:${community.contactPhone}`}
-                        className="font-sans text-sm text-foreground hover:text-primary transition-colors"
-                      >
-                        {community.contactPhone}
-                      </a>
-                    </div>
-                  </div>
-                )}
-                {community.contactEmail && (
-                  <div className="flex items-start gap-3">
-                    <Mail className="w-4 h-4 text-primary/60 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-sans text-xs uppercase tracking-wide text-muted-foreground">
-                        Email
-                      </p>
-                      <a
-                        href={`mailto:${community.contactEmail}`}
-                        className="font-sans text-sm text-foreground hover:text-primary transition-colors"
-                      >
-                        {community.contactEmail}
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Gallery */}
-              <CommunityGalleryView communityId={community.id} />
+              {/* Meeting info */}
+              {(community.meetingDay ||
+                community.meetingTime ||
+                community.meetingPlace) && (
+                <div className="space-y-2">
+                  <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    Spotkania
+                  </p>
+                  <div className="space-y-1.5">
+                    {(community.meetingDay || community.meetingTime) && (
+                      <div className="flex items-center gap-2 text-sm text-foreground/70">
+                        <Calendar className="w-4 h-4 flex-shrink-0 text-primary/60" />
+                        <span className="font-sans">
+                          {[community.meetingDay, community.meetingTime]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </div>
+                    )}
+                    {community.meetingPlace && (
+                      <div className="flex items-center gap-2 text-sm text-foreground/70">
+                        <MapPin className="w-4 h-4 flex-shrink-0 text-primary/60" />
+                        <span className="font-sans">
+                          {community.meetingPlace}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Caretaker & contact */}
+              {(community.caretaker ||
+                community.contactPhone ||
+                community.contactEmail) && (
+                <div className="space-y-2">
+                  <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    Kontakt
+                  </p>
+                  <div className="space-y-1.5">
+                    {community.caretaker && (
+                      <div className="flex items-center gap-2 text-sm text-foreground/70">
+                        <User className="w-4 h-4 flex-shrink-0 text-primary/60" />
+                        <span className="font-sans">{community.caretaker}</span>
+                      </div>
+                    )}
+                    {community.contactPhone && (
+                      <div className="flex items-center gap-2 text-sm text-foreground/70">
+                        <Phone className="w-4 h-4 flex-shrink-0 text-primary/60" />
+                        <a
+                          href={`tel:${community.contactPhone}`}
+                          className="font-sans hover:text-primary transition-colors"
+                        >
+                          {community.contactPhone}
+                        </a>
+                      </div>
+                    )}
+                    {community.contactEmail && (
+                      <div className="flex items-center gap-2 text-sm text-foreground/70">
+                        <Mail className="w-4 h-4 flex-shrink-0 text-primary/60" />
+                        <a
+                          href={`mailto:${community.contactEmail}`}
+                          className="font-sans hover:text-primary transition-colors"
+                        >
+                          {community.contactEmail}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         </>

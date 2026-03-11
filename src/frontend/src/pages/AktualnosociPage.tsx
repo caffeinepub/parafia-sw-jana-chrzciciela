@@ -1,5 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { motion } from "motion/react";
 import React, { useRef, useState } from "react";
 import { ImageWithFallback } from "../components/parish/ImagePlaceholder";
 import { SectionReveal } from "../components/parish/SectionReveal";
@@ -26,19 +27,39 @@ export function AktualnosociPage() {
 
   return (
     <main className="min-h-screen pt-nav">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16" ref={topRef}>
-        <SectionReveal>
-          <div className="mb-16">
-            <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
-              Parafia św. Jana Chrzciciela
-            </p>
-            <h1 className="font-display text-4xl sm:text-5xl font-extralight text-foreground">
-              Aktualności
-            </h1>
-            <div className="w-12 h-px bg-border mt-6" />
-          </div>
-        </SectionReveal>
+      <section
+        className="relative flex items-center justify-center min-h-[40vh] overflow-hidden"
+        data-ocid="news.hero.section"
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(165deg, oklch(var(--theme-hero-from)) 0%, oklch(var(--card)) 55%, oklch(var(--accent) / 0.35) 100%)",
+          }}
+        />
+        <div className="absolute inset-0 bg-foreground/5" />
+        <div className="relative z-10 text-center px-6 max-w-2xl mx-auto py-20">
+          <motion.h1
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="font-display text-4xl md:text-5xl font-extralight text-foreground mb-4"
+          >
+            Aktualności
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="font-sans text-lg font-light text-foreground/70 leading-relaxed"
+          >
+            Bieżące informacje z życia parafii
+          </motion.p>
+        </div>
+      </section>
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16" ref={topRef}>
         {isLoading ? (
           <div
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
@@ -114,7 +135,6 @@ export function AktualnosociPage() {
               ))}
             </div>
 
-            {/* Pagination – show only when more than one page */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-4 mt-12">
                 <button

@@ -25,7 +25,6 @@ import {
   ChevronDown,
   ChevronUp,
   ImagePlus,
-  Images,
   Loader2,
   Pencil,
   Plus,
@@ -85,33 +84,6 @@ function generateId() {
 
 async function saveCommunities(actor: any, communities: Community[]) {
   await actor.updateContentBlock(CONTENT_KEY, JSON.stringify(communities));
-}
-
-async function ensureCommunityAlbum(actor: any, communityId: string) {
-  const albumId = `__cg_${communityId}`;
-  try {
-    const existing = await actor.getGalleryAlbum(albumId);
-    if (existing) return albumId;
-  } catch {
-    // album doesn't exist, create it
-  }
-  try {
-    const { ExternalBlob } = await import("../backend");
-    await actor.createGalleryAlbum({
-      id: albumId,
-      name: "Galeria wspólnoty",
-      description: "",
-      date: new Date().toISOString().split("T")[0],
-      layout: "grid",
-      coverImage: ExternalBlob.fromURL(
-        "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-      ),
-      photos: [],
-    });
-  } catch (err) {
-    console.warn("ensureCommunityAlbum error", err);
-  }
-  return albumId;
 }
 
 async function compressImage(file: File): Promise<string> {
@@ -475,208 +447,6 @@ function CommunityForm({
 }
 
 // ============================================================
-// GALLERY MANAGER
-// ============================================================
-
-function CommunityGalleryManager({ community }: { community: Community }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [uploadLoading, setUploadLoading] = useState(false);
-  const { actor, isFetching } = useActor();
-  const { actorRef, fetchingRef } = useActorRef();
-  const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const albumId = `__cg_${community.id}`;
-
-  const { data: photos = [], isLoading: photosLoading } = useQuery<any[]>({
-    queryKey: ["communityGallery", community.id],
-    queryFn: async () => {
-      if (!actor) return [];
-      try {
-        const result = await (actor as any).getPhotosByAlbum(albumId);
-        return Array.isArray(result) ? result : [];
-      } catch {
-        return [];
-      }
-    },
-    enabled: !!actor && !isFetching && isOpen,
-    staleTime: 0,
-  });
-
-  const deletePhotoMutation = useMutation({
-    mutationFn: async (photoId: string) => {
-      const a = await waitForActor(actorRef, fetchingRef);
-      await a.removePhoto(albumId, photoId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["communityGallery", community.id],
-      });
-      toast.success("Zdjęcie usunięte");
-    },
-    onError: (err) => {
-      console.error("deletePhoto error", err);
-      toast.error("Błąd usuwania zdjęcia");
-    },
-  });
-
-  const handleFilesSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    setUploadLoading(true);
-    try {
-      const a = await waitForActor(actorRef, fetchingRef);
-      const aid = await ensureCommunityAlbum(a, community.id);
-      const { ExternalBlob } = await import("../backend");
-
-      let addedCount = 0;
-      for (const file of files) {
-        try {
-          const dataUrl = await compressImage(file);
-          const photoId = `gp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-          await a.addPhoto(aid, {
-            id: photoId,
-            caption: file.name.replace(/\.[^.]+$/, ""),
-            date: new Date().toISOString().split("T")[0],
-            blob: ExternalBlob.fromURL(dataUrl),
-          });
-          addedCount++;
-        } catch (err) {
-          console.error("addPhoto error", err);
-        }
-      }
-
-      queryClient.invalidateQueries({
-        queryKey: ["communityGallery", community.id],
-      });
-      if (addedCount > 0) {
-        toast.success(
-          `Dodano ${addedCount === 1 ? "zdjęcie" : `${addedCount} zdjęcia`}`,
-        );
-      } else {
-        toast.error("Nie udało się dodać zdjęcia");
-      }
-    } catch (err) {
-      console.error("handleFilesSelect error", err);
-      toast.error("Błąd dodawania zdjęć");
-    } finally {
-      setUploadLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  return (
-    <div className="border-t border-border/50 mt-2 pt-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="font-sans font-light text-xs text-muted-foreground hover:text-foreground w-full justify-start gap-2"
-        onClick={() => setIsOpen((v) => !v)}
-        data-ocid="wspolnoty.gallery.toggle"
-      >
-        <Images className="w-3.5 h-3.5" />
-        Zarządzaj galerią
-        {isOpen ? (
-          <ChevronUp className="w-3.5 h-3.5 ml-auto" />
-        ) : (
-          <ChevronDown className="w-3.5 h-3.5 ml-auto" />
-        )}
-      </Button>
-
-      {isOpen && (
-        <div className="mt-3 space-y-3 px-1 pb-3">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFilesSelect}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            className="font-sans font-light text-sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadLoading}
-            data-ocid="wspolnoty.gallery.upload_button"
-          >
-            {uploadLoading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Plus className="w-4 h-4 mr-2" />
-            )}
-            {uploadLoading ? "Dodawanie…" : "Dodaj zdjęcia"}
-          </Button>
-
-          {photosLoading ? (
-            <div
-              className="grid grid-cols-3 gap-2"
-              data-ocid="wspolnoty.gallery.loading_state"
-            >
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton
-                  // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
-                  key={`gsk-${i}`}
-                  className="aspect-square rounded-lg"
-                />
-              ))}
-            </div>
-          ) : photos.length === 0 ? (
-            <p
-              className="font-sans text-xs text-muted-foreground/60 py-2"
-              data-ocid="wspolnoty.gallery.empty_state"
-            >
-              Brak zdjęć w galerii. Dodaj pierwsze.
-            </p>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {photos.map((photo: any, i: number) => {
-                let src = "";
-                try {
-                  src =
-                    typeof photo.blob?.getDirectURL === "function"
-                      ? photo.blob.getDirectURL()
-                      : (photo.blob?.url ?? photo.url ?? "");
-                } catch {
-                  src = "";
-                }
-                return (
-                  <div
-                    // biome-ignore lint/suspicious/noArrayIndexKey: gallery admin
-                    key={`ap-${i}`}
-                    className="relative aspect-square rounded-lg overflow-hidden bg-muted/30 group"
-                  >
-                    {src && (
-                      <img
-                        src={src}
-                        alt={photo.caption ?? `Zdjęcie ${i + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
-                      onClick={() =>
-                        deletePhotoMutation.mutate(photo.id ?? String(i))
-                      }
-                      disabled={deletePhotoMutation.isPending}
-                      data-ocid={`wspolnoty.gallery.delete_button.${i + 1}`}
-                    >
-                      <Trash2 className="w-4 h-4 text-white" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================
 // META EDITOR
 // ============================================================
 
@@ -1019,7 +789,6 @@ export function WspolnotyTab() {
                   </AlertDialog>
                 </div>
               </div>
-              <CommunityGalleryManager community={community} />
             </div>
           ))}
         </div>

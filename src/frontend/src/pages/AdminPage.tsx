@@ -75,6 +75,7 @@ import {
   useUpdateNews,
   useUpdateSiteSettings,
 } from "../hooks/useQueries";
+import { KancelariaTab } from "./AdminKancelariaTab";
 import { WspolnotyTab } from "./AdminWspolnotyTab";
 
 // ============================================================
@@ -1804,6 +1805,7 @@ export function AdminPage() {
               { value: "nawigacja", label: "Nawigacja" },
               { value: "ustawienia", label: "Ustawienia" },
               { value: "wspolnoty", label: "Wspólnoty" },
+              { value: "kancelaria", label: "Kancelaria" },
               { value: "role", label: "Role" },
             ].map((tab) => (
               <TabsTrigger
@@ -1840,6 +1842,9 @@ export function AdminPage() {
           </TabsContent>
           <TabsContent value="wspolnoty">
             <WspolnotyTab />
+          </TabsContent>
+          <TabsContent value="kancelaria">
+            <KancelariaTab />
           </TabsContent>
           <TabsContent value="role">
             <RolesTab />

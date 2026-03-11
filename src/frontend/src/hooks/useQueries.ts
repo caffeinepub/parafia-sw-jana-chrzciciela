@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
 import type {
   AppUserRole,
-  Event,
   GalleryAlbum,
   GalleryPhoto,
   HomeSection,
@@ -192,104 +191,6 @@ export function useDeleteNews() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["publicNews"] });
       queryClient.invalidateQueries({ queryKey: ["allNews"] });
-    },
-  });
-}
-
-// ============================================================
-// EVENTS
-// ============================================================
-
-export function usePublicEvents() {
-  const { actor, isFetching } = useActor();
-  return useQuery<Event[]>({
-    queryKey: ["publicEvents"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getPublicEvents();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAllEvents() {
-  const { actor, isFetching } = useActor();
-  return useQuery<Event[]>({
-    queryKey: ["allEvents"],
-    queryFn: async () => {
-      if (!actor) return [];
-      try {
-        // Race against a 12-second timeout to prevent infinite hangs
-        const timeoutPromise = new Promise<Event[]>((_, reject) =>
-          setTimeout(() => reject(new Error("getAllEvents timed out")), 12000),
-        );
-        return await Promise.race([actor.getAllEvents(), timeoutPromise]);
-      } catch {
-        return [];
-      }
-    },
-    enabled: !!actor && !isFetching,
-    retry: 0,
-    staleTime: 0, // always refetch on mount so stale cache never masks backend issues
-    refetchOnMount: true,
-  });
-}
-
-export function useCreateEvent() {
-  const { actorRef, fetchingRef } = useActorRef();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (event: Event) => {
-      const a = await waitForActor(actorRef, fetchingRef);
-      const timeoutPromise = new Promise<void>((_, reject) =>
-        setTimeout(() => reject(new Error("createEvent timed out")), 15000),
-      );
-      await Promise.race([a.createEvent(event), timeoutPromise]);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["publicEvents"] });
-      queryClient.invalidateQueries({ queryKey: ["allEvents"] });
-      queryClient.invalidateQueries({ queryKey: ["publicEventsPaginated"] });
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: ["allEvents"] });
-    },
-  });
-}
-
-export function useUpdateEvent() {
-  const { actorRef, fetchingRef } = useActorRef();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, event }: { id: string; event: Event }) => {
-      const a = await waitForActor(actorRef, fetchingRef);
-      const timeoutPromise = new Promise<void>((_, reject) =>
-        setTimeout(() => reject(new Error("updateEvent timed out")), 15000),
-      );
-      await Promise.race([a.updateEvent(id, event), timeoutPromise]);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["publicEvents"] });
-      queryClient.invalidateQueries({ queryKey: ["allEvents"] });
-      queryClient.invalidateQueries({ queryKey: ["publicEventsPaginated"] });
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: ["allEvents"] });
-    },
-  });
-}
-
-export function useDeleteEvent() {
-  const { actorRef, fetchingRef } = useActorRef();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const a = await waitForActor(actorRef, fetchingRef);
-      await a.deleteEvent(id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["publicEvents"] });
-      queryClient.invalidateQueries({ queryKey: ["allEvents"] });
     },
   });
 }
@@ -524,14 +425,12 @@ export function useHomePageData() {
     queryKey: ["homePageData"],
     queryFn: async () => {
       if (!actor) return null;
-      const [homeSections, siteSettings, latestNews, upcomingEvents] =
-        await Promise.all([
-          actor.getHomeSections(),
-          actor.getSiteSettings(),
-          actor.getPublicNews(),
-          actor.getPublicEvents(),
-        ]);
-      return { homeSections, siteSettings, latestNews, upcomingEvents };
+      const [homeSections, siteSettings, latestNews] = await Promise.all([
+        actor.getHomeSections(),
+        actor.getSiteSettings(),
+        actor.getPublicNews(),
+      ]);
+      return { homeSections, siteSettings, latestNews };
     },
     enabled: !!actor && !isFetching,
     staleTime: 30_000, // 30s client-side cache
@@ -549,31 +448,6 @@ export function usePublicNewsPaginated(page: number, pageSize: number) {
     queryFn: async () => {
       if (!actor) return { items: [] as NewsArticle[], total: 0 };
       const items = await actor.getPublicNews();
-      return { items, total: items.length };
-    },
-    enabled: !!actor && !isFetching,
-    staleTime: 30_000,
-    select: (data) => {
-      const start = page * pageSize;
-      return {
-        items: data.items.slice(start, start + pageSize),
-        total: data.total,
-      };
-    },
-  });
-}
-
-// ============================================================
-// PAGINATED EVENTS – client-side pagination over full list
-// ============================================================
-
-export function usePublicEventsPaginated(page: number, pageSize: number) {
-  const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["publicEventsPaginated"],
-    queryFn: async () => {
-      if (!actor) return { items: [] as Event[], total: 0 };
-      const items = await actor.getPublicEvents();
       return { items, total: items.length };
     },
     enabled: !!actor && !isFetching,

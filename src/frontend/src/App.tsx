@@ -1,5 +1,4 @@
 import { Toaster } from "@/components/ui/sonner";
-import { Briefcase } from "lucide-react";
 import React from "react";
 import { Footer } from "./components/parish/Footer";
 import { LockButton } from "./components/parish/LockButton";
@@ -10,9 +9,9 @@ import { AktualnosociDetailPage } from "./pages/AktualnosociDetailPage";
 import { AktualnosociPage } from "./pages/AktualnosociPage";
 import { GaleriaPage } from "./pages/GaleriaPage";
 import { HomePage } from "./pages/HomePage";
+import { KancelariaPage } from "./pages/KancelariaPage";
 import { KontaktPage } from "./pages/KontaktPage";
 import { LiturgiaPage } from "./pages/LiturgiaPage";
-import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { WspolnotyPage } from "./pages/WspolnotyPage";
 import { Route, RouterProvider, Routes } from "./router";
 
@@ -29,16 +28,7 @@ function AppLayout() {
           <Route path="/liturgia" element={<LiturgiaPage />} />
           <Route path="/wspolnoty" element={<WspolnotyPage />} />
           <Route path="/galeria" element={<GaleriaPage />} />
-          <Route
-            path="/kancelaria"
-            element={
-              <PlaceholderPage
-                title="Kancelaria"
-                subtitle="Informacje o godzinach urzędowania i dokumentach kancelarii parafialnej."
-                icon={<Briefcase className="w-7 h-7" />}
-              />
-            }
-          />
+          <Route path="/kancelaria" element={<KancelariaPage />} />
           <Route path="/kontakt" element={<KontaktPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
