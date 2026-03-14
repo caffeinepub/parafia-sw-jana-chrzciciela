@@ -76,7 +76,7 @@ import {
   useUpdateSiteSettings,
 } from "../hooks/useQueries";
 import { KancelariaTab } from "./AdminKancelariaTab";
-import { KaplicaTab } from "./AdminKaplicaTab";
+import { ModlitwaTab } from "./AdminModlitwaTab";
 import { WspolnotyTab } from "./AdminWspolnotyTab";
 
 // ============================================================
@@ -1807,7 +1807,7 @@ export function AdminPage() {
               { value: "ustawienia", label: "Ustawienia" },
               { value: "wspolnoty", label: "Wspólnoty" },
               { value: "kancelaria", label: "Kancelaria" },
-              { value: "kaplica", label: "Kaplica" },
+              { value: "modlitwa", label: "Modlitwa" },
               { value: "role", label: "Role" },
             ].map((tab) => (
               <TabsTrigger
@@ -1848,8 +1848,8 @@ export function AdminPage() {
           <TabsContent value="kancelaria">
             <KancelariaTab />
           </TabsContent>
-          <TabsContent value="kaplica">
-            <KaplicaTab />
+          <TabsContent value="modlitwa">
+            <ModlitwaTab />
           </TabsContent>
           <TabsContent value="role">
             <RolesTab />

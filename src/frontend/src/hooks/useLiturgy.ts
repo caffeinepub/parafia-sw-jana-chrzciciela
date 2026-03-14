@@ -263,38 +263,39 @@ export function useLiturgy(): LiturgyState {
 
   const loadWeek = React.useCallback(
     async (id: string) => {
-      setIsLoading(true);
       setError(null);
       setWeekId(id);
 
-      // 1. Try backend first (non-blocking)
-      let backendResult: LiturgyWeek | null = null;
-      try {
-        const a = await tryGetActor();
-        if (a) {
-          const fetched =
-            id === currentWeekId
-              ? await a.getCurrentLiturgyWeek()
-              : await a.getLiturgyWeek(id);
-          if (fetched) {
-            backendResult = ensureAllDays(fetched);
-            // Persist to localStorage so it survives offline
-            lsSaveWeek(backendResult);
-          }
-        }
-      } catch {
-        // Backend unavailable or unauthorized — fall through to localStorage
-      }
-
-      // 2. Fall back to localStorage if backend returned nothing
-      if (backendResult) {
-        setWeek(backendResult);
+      // 1. Show localStorage immediately (fast path — no loading delay)
+      const local = lsGetWeek(id);
+      if (local) {
+        setWeek(ensureAllDays(local));
+        setIsLoading(false);
       } else {
-        const local = lsGetWeek(id);
-        setWeek(local ? ensureAllDays(local) : buildEmptyWeek(id));
+        setIsLoading(true); // only show skeleton if nothing in localStorage
       }
 
-      setIsLoading(false);
+      // 2. Refresh from backend silently in background
+      void (async () => {
+        try {
+          const a = await tryGetActor();
+          if (a) {
+            const fetched =
+              id === currentWeekId
+                ? await a.getCurrentLiturgyWeek()
+                : await a.getLiturgyWeek(id);
+            if (fetched) {
+              const backendResult = ensureAllDays(fetched);
+              lsSaveWeek(backendResult);
+              setWeek(backendResult);
+            }
+          }
+        } catch {
+          // Backend unavailable — localStorage data is already shown
+        } finally {
+          setIsLoading(false);
+        }
+      })();
     },
     [tryGetActor, currentWeekId],
   );

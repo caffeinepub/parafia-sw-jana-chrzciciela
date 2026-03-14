@@ -232,7 +232,15 @@ function HeroSection() {
         />
       </div>
       <Button
-        onClick={() => mutate(current)}
+        onClick={() =>
+          mutate({
+            ...(data ?? DEFAULT_KANCELARIA_META),
+            heroTitle: current.heroTitle,
+            heroSubtitle: current.heroSubtitle,
+            heroDescription: current.heroDescription,
+            heroImageUrl: current.heroImageUrl,
+          })
+        }
         disabled={isPending}
         size="sm"
         className="font-sans font-light"
@@ -875,7 +883,20 @@ function MetaSection() {
       </div>
 
       <Button
-        onClick={() => mutate(current)}
+        onClick={() =>
+          mutate({
+            ...(data ?? DEFAULT_KANCELARIA_META),
+            contactPhone: current.contactPhone,
+            contactEmail: current.contactEmail,
+            contactAddress: current.contactAddress,
+            contactNote: current.contactNote,
+            commonDocuments: current.commonDocuments,
+            announcementVisible: current.announcementVisible,
+            announcement: current.announcement,
+            closingTitle: current.closingTitle,
+            closingText: current.closingText,
+          })
+        }
         disabled={isPending}
         size="sm"
         className="font-sans font-light"

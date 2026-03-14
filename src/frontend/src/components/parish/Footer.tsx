@@ -32,9 +32,9 @@ export function Footer() {
                 { name: "Liturgia", path: "/liturgia" },
                 { name: "Wspólnoty", path: "/wspolnoty" },
                 { name: "Galeria", path: "/galeria" },
-                { name: "Kaplica", path: "/kaplica" },
                 { name: "Kancelaria", path: "/kancelaria" },
                 { name: "Kontakt", path: "/kontakt" },
+                { name: "Modlitwa", path: "/modlitwa" },
               ].map((item) => (
                 <Link
                   key={item.path}

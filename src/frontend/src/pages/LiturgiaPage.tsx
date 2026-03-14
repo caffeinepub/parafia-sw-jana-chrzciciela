@@ -868,6 +868,7 @@ function generatePDF(week: LiturgyWeek): void {
   setTimeout(() => {
     printWindow.focus();
     printWindow.print();
+    printWindow.onafterprint = () => printWindow.close();
   }, 600);
 }
 

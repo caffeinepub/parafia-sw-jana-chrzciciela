@@ -14,13 +14,11 @@ import React, {
 interface RouterContextValue {
   pathname: string;
   navigate: (to: string) => void;
-  push: (to: string) => void;
 }
 
 const RouterContext = createContext<RouterContextValue>({
   pathname: "/",
   navigate: () => {},
-  push: () => {},
 });
 
 const ParamsContext = createContext<Record<string, string>>({});
@@ -43,7 +41,7 @@ export function RouterProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <RouterContext.Provider value={{ pathname, navigate, push: navigate }}>
+    <RouterContext.Provider value={{ pathname, navigate }}>
       {children}
     </RouterContext.Provider>
   );
@@ -51,10 +49,6 @@ export function RouterProvider({ children }: { children: React.ReactNode }) {
 
 export function useRouter() {
   return useContext(RouterContext);
-}
-
-export function usePathname() {
-  return useContext(RouterContext).pathname;
 }
 
 export function useNavigate() {

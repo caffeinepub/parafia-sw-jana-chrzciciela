@@ -10,9 +10,9 @@ import { AktualnosociPage } from "./pages/AktualnosociPage";
 import { GaleriaPage } from "./pages/GaleriaPage";
 import { HomePage } from "./pages/HomePage";
 import { KancelariaPage } from "./pages/KancelariaPage";
-import { KaplicaPage } from "./pages/KaplicaPage";
 import { KontaktPage } from "./pages/KontaktPage";
 import { LiturgiaPage } from "./pages/LiturgiaPage";
+import { ModlitwaPage } from "./pages/ModlitwaPage";
 import { WspolnotyPage } from "./pages/WspolnotyPage";
 import { Route, RouterProvider, Routes } from "./router";
 
@@ -31,7 +31,7 @@ function AppLayout() {
           <Route path="/galeria" element={<GaleriaPage />} />
           <Route path="/kancelaria" element={<KancelariaPage />} />
           <Route path="/kontakt" element={<KontaktPage />} />
-          <Route path="/kaplica" element={<KaplicaPage />} />
+          <Route path="/modlitwa" element={<ModlitwaPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </div>

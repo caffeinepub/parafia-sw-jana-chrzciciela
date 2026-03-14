@@ -84,16 +84,22 @@ export function AktualnosociDetailPage() {
 
   React.useEffect(() => {
     if (!id || !actor || isFetching || fromList) return;
+    let cancelled = false;
     setSingleLoading(true);
     actor
       .getNewsArticle(id)
       .then((result) => {
-        setSingleArticle(result ?? null);
-        setSingleLoading(false);
+        if (!cancelled) {
+          setSingleArticle(result ?? null);
+          setSingleLoading(false);
+        }
       })
       .catch(() => {
-        setSingleLoading(false);
+        if (!cancelled) setSingleLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [id, actor, isFetching, fromList]);
 
   const article = fromList ?? singleArticle;

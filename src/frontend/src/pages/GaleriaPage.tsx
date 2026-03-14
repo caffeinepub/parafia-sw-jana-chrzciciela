@@ -1,7 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { motion } from "motion/react";
-import React, { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { GalleryAlbum } from "../backend.d";
 import { ImageWithFallback } from "../components/parish/ImagePlaceholder";
 import { SectionReveal } from "../components/parish/SectionReveal";
@@ -17,17 +17,17 @@ function AlbumGrid({
     (a, b) => Number(a.order) - Number(b.order),
   );
 
-  const prev = () => {
+  const prev = useCallback(() => {
     if (lightboxIndex === null) return;
     setLightboxIndex((lightboxIndex - 1 + photos.length) % photos.length);
-  };
+  }, [lightboxIndex, photos.length]);
 
-  const next = () => {
+  const next = useCallback(() => {
     if (lightboxIndex === null) return;
     setLightboxIndex((lightboxIndex + 1) % photos.length);
-  };
+  }, [lightboxIndex, photos.length]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (lightboxIndex === null) return;
       if (e.key === "ArrowLeft") prev();
@@ -36,7 +36,7 @@ function AlbumGrid({
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  });
+  }, [lightboxIndex, prev, next]);
 
   return (
     <div>

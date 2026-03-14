@@ -13,7 +13,6 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import type React from "react";
 import { useState } from "react";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useActor } from "../hooks/useActor";
@@ -374,7 +373,7 @@ export function KancelariaPage() {
   const visibleHours = (hours ?? DEFAULT_HOURS).filter((h) => h.visible);
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background pt-nav">
       {/* ── HERO ─────────────────────────────────────────── */}
       <section
         className="relative flex items-center justify-center min-h-[40vh] overflow-hidden"
