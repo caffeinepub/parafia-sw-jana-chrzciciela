@@ -1,43 +1,46 @@
 # Parafia sw Jana Chrzciciela
 
 ## Current State
-
-Aplikacja ma wdrożone zakładki: Strona Główna, Aktualności, Liturgia, Wspólnoty, Kancelaria, Galeria, Kontakt, Panel Admina.
-
-Backend korzysta z `contentBlocks` (klucz-wartość) do przechowywania tekstów edytowalnych. Autentykacja: zalogowany przez Internet Identity = admin. Nie ma zakładki "Kaplica" -- ani w nawigacji, ani w stopce, ani w routerze.
+Aplikacja parafialna z zakładkami: Aktualności, Liturgia, Wspólnoty, Galeria, Kancelaria, Kontakt, Modlitwa. Brak zakładki "Życie".
 
 ## Requested Changes (Diff)
 
 ### Add
-- Typ `PrayerIntention` w backendzie z polami: id, name, title, content, email, visibility, status, date, prayerCount, featured
-- Backend funkcje: `submitPrayerIntention` (publiczna), `updatePrayerIntentionStatus`, `updatePrayerIntention`, `deletePrayerIntention`, `getPrayerIntentions` (admin), `getPublicPrayerIntentions` (publiczna), `incrementPrayerCount` (publiczna)
-- Strona `KaplicaPage.tsx` z: hero, formularz intencji, wizualizacja świec, lista publicznych intencji, sekcja "Dar serca"
-- Panel admina `AdminKaplicaTab.tsx`: lista wszystkich intencji, moderacja (statusy, edycja, przypisanie do Mszy, wyróżnienie, archiwizacja)
-- Route `/kaplica` w App.tsx
-- Wpis "Kaplica" w nawigacji (Navigation.tsx DEFAULT_NAV) i stopce (Footer.tsx)
-- Zakładka "Kaplica" w AdminPage.tsx
+- Nowa zakładka "Życie" pod adresem `/zycie` z interaktywną SVG Rozetą Liturgiczną
+- ZyciePage.tsx -- strona publiczna z Rozetą
+- AdminZycieTab.tsx -- panel admina do zarządzania danymi
+- 6 kategorii życia parafii: Chrzty, I Komunia, Bierzmowanie, Małżeństwa, Pogrzeby ("Odeszli do Domu Ojca"), Wydarzenia
+- Dane demonstracyjne dla lat 2024-2026
+- Dropdown wyboru roku
+- Panel detalu po kliknięciu sektora rozety
+- Statystyki roczne pod rozetą
+- Hero z edytowalnymi tekstami
+- "Życie" w DEFAULT_NAV i menu nawigacyjnym
 
 ### Modify
-- `src/backend/main.mo` -- dodanie PrayerIntention type i funkcji CRUD
-- `src/frontend/src/App.tsx` -- nowy import i Route dla KaplicaPage
-- `src/frontend/src/components/parish/Navigation.tsx` -- dodanie "Kaplica" do DEFAULT_NAV
-- `src/frontend/src/components/parish/Footer.tsx` -- dodanie "Kaplica" do linków
-- `src/frontend/src/pages/AdminPage.tsx` -- dodanie zakładki Kaplica
+- App.tsx -- dodać Route path="/zycie"
+- AdminPage.tsx -- dodać zakładkę Życie i DEFAULT_NAV entry
+- Footer.tsx -- dodać link do /zycie
 
 ### Remove
 - Nic
 
 ## Implementation Plan
-
-1. **Backend (main.mo)**: Dodaj `PrayerIntention` record type i Map. Dodaj 7 funkcji (submit publiczna, get publiczne, get wszystkich dla admina, update status, update intention, delete, increment prayer count).
-
-2. **KaplicaPage.tsx**: 
-   - Hero: ciemne gradientowe tło, edytowalny nagłówek/podtytuł/opis przez contentBlock, obraz tła
-   - Wizualizacja świec: canvas lub CSS-based, centralna świeca Mszy (złota, pulsująca, auto-aktywna gdy trwa Msza wg grafiku liturgicznego z localStorage), świece indywidualne dla zatwierdzonych intencji
-   - Formularz intencji: imię (opcjonalne), tytuł, treść, email (opcjonalne), widoczność (public/private), limit 1 dziennie przez localStorage
-   - Lista publicznych intencji z licznikiem "Modlę się"
-   - Sekcja "Dar serca": numer konta (edytowalny contentBlock), przycisk kopiowania
-
-3. **AdminKaplicaTab.tsx**: Tabela intencji ze statusami, filtrowanie, akcje (zatwierdź, edytuj, odrzuć, przypisz do Mszy, wyróżnij, archiwizuj)
-
-4. **Routing i nawigacja**: Zintegruj nową stronę z istniejącą infrastrukturą.
+1. ZyciePage.tsx:
+   - Hero z gradientem i edytowalnymi tekstami (tło ciemne, sakralne)
+   - Interaktywna SVG Rozeta -- koło podzielone na 6 sektorów kolorowych jak witraż kościelny
+   - Centrum rozety: wybrany rok + statystyki sumaryczne, powolna pulsacja złotego blasku
+   - 6 sektorów z ikonami i etykietami: Chrzty (błękit), I Komunia (złoto), Bierzmowanie (czerwień), Małżeństwa (róż), Odeszli do Domu Ojca (fiolet), Wydarzenia (zieleń)
+   - Animacja: cząsteczki światła unoszące się wokół rozety, sektory rozświetlają się przy hover/klik
+   - Kliknięcie sektora otwiera panel boczny slide-in z listą wpisów danej kategorii i roku
+   - Dropdown wyboru roku (2024, 2025, 2026)
+   - Statystyki roczne pod rozetą (6 liczb w kartach)
+   - Dane z localStorage (zycieData) z fallback na dane demo
+2. AdminZycieTab.tsx:
+   - 6 podzakładek per kategoria
+   - CRUD dla każdej kategorii (dodaj, edytuj, usuń)
+   - Pola zależne od kategorii (imię, data, rok, opis, hasło bierzmowania itp.)
+   - Zapis do localStorage pod kluczem zycieData
+3. App.tsx -- Route /zycie
+4. AdminPage.tsx -- zakładka Życie + DEFAULT_NAV entry
+5. Footer.tsx -- link Życie

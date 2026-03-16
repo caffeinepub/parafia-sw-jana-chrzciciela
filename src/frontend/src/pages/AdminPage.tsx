@@ -91,6 +91,7 @@ import {
 import { KancelariaTab } from "./AdminKancelariaTab";
 import { ModlitwaTab } from "./AdminModlitwaTab";
 import { WspolnotyTab } from "./AdminWspolnotyTab";
+import { AdminZycieTab } from "./AdminZycieTab";
 
 // ============================================================
 // ACCESS GUARD
@@ -1361,6 +1362,7 @@ const DEFAULT_NAV = [
   { name: "Kancelaria", path: "/kancelaria", visible: true },
   { name: "Kontakt", path: "/kontakt", visible: true },
   { name: "Modlitwa", path: "/modlitwa", visible: true },
+  { name: "Życie", path: "/zycie", visible: true },
 ];
 
 function NavigationTab() {
@@ -2249,6 +2251,7 @@ export function AdminPage() {
               { value: "wspolnoty", label: "Wspólnoty" },
               { value: "kancelaria", label: "Kancelaria" },
               { value: "modlitwa", label: "Modlitwa" },
+              { value: "zycie", label: "Życie" },
               { value: "role", label: "Role" },
             ].map((tab) => (
               <TabsTrigger
@@ -2291,6 +2294,9 @@ export function AdminPage() {
           </TabsContent>
           <TabsContent value="modlitwa">
             <ModlitwaTab />
+          </TabsContent>
+          <TabsContent value="zycie">
+            <AdminZycieTab />
           </TabsContent>
           <TabsContent value="role">
             <RolesTab />

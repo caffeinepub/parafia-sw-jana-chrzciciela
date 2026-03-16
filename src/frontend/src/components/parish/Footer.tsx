@@ -79,6 +79,7 @@ export function Footer() {
                 { name: "Kancelaria", path: "/kancelaria" },
                 { name: "Kontakt", path: "/kontakt" },
                 { name: "Modlitwa", path: "/modlitwa" },
+                { name: "Życie", path: "/zycie" },
               ].map((item) => (
                 <Link
                   key={item.path}
