@@ -110,6 +110,7 @@ function PrayersTab() {
 
   const pending = prayers.filter((p) => !p.isApproved && !p.isHidden);
   const approved = prayers.filter((p) => p.isApproved && !p.isHidden);
+  const hidden = prayers.filter((p) => p.isHidden);
 
   const approve = useCallback((id: string) => {
     setPrayers((prev) => {
@@ -276,6 +277,76 @@ function PrayersTab() {
                     className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                     onClick={() => remove(prayer.id)}
                     data-ocid={`admin.prayers.del.button.${idx + 1}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hidden.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+            Ukryte
+          </h3>
+          <div
+            className="space-y-2 opacity-60"
+            data-ocid="admin.prayers.hidden.list"
+          >
+            {hidden.map((prayer, idx) => (
+              <div
+                key={prayer.id}
+                className="flex items-start gap-3 p-4 rounded-xl border border-border bg-card"
+                data-ocid={`admin.prayers.hidden.item.${idx + 1}`}
+              >
+                <div
+                  className="w-3 h-3 rounded-full mt-1 flex-shrink-0"
+                  style={{ background: prayer.color }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-foreground">
+                      {prayer.name || "Anonim"}
+                    </span>
+                    {prayer.city && (
+                      <span className="text-xs text-muted-foreground">
+                        {prayer.city}
+                      </span>
+                    )}
+                  </div>
+                  {prayer.intention && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {prayer.intention}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground/50 mt-1">
+                    {new Date(prayer.joinedAt).toLocaleDateString("pl-PL")}
+                  </p>
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50"
+                    onClick={() => {
+                      toggleHidden(prayer.id);
+                      toast.success("Modlitwa przywrócona.");
+                    }}
+                    title="Przywróć"
+                    data-ocid={`admin.prayers.restore.button.${idx + 1}`}
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                    onClick={() => remove(prayer.id)}
+                    title="Usuń"
+                    data-ocid={`admin.prayers.hidden.delete.button.${idx + 1}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -794,7 +865,7 @@ function MassIntentionsTab() {
             Odrzucone
           </h3>
           <div className="space-y-2 opacity-60">
-            {rejected.map((int, idx) => renderIntentionCard(int, idx, false))}
+            {rejected.map((int, idx) => renderIntentionCard(int, idx, true))}
           </div>
         </div>
       )}

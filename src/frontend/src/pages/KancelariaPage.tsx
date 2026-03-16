@@ -5,18 +5,24 @@ import {
   Check,
   ChevronRight,
   Clock,
+  Copy,
+  Facebook,
   FileText,
+  Globe,
   Mail,
   MapPin,
   Pencil,
   Phone,
+  Twitter,
   X,
+  Youtube,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import React, { useState } from "react";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useSiteSettings } from "../hooks/useQueries";
 import { Link } from "../router";
 
 // ============================================================
@@ -366,8 +372,41 @@ export function KancelariaPage() {
   const { data: meta, isLoading: metaLoading } = useKancelariaMeta();
   const { data: hours, isLoading: hoursLoading } = useKancelariaHours();
   const { data: matters, isLoading: mattersLoading } = useKancelariaMatters();
+  const { data: siteSettings } = useSiteSettings();
 
   const [selectedMatter, setSelectedMatter] = useState<Matter | null>(null);
+  const [bankCopied, setBankCopied] = useState(false);
+
+  const siteContact = React.useMemo(() => {
+    if (siteSettings?.contactData) {
+      try {
+        return JSON.parse(siteSettings.contactData) as {
+          bankAccount?: string;
+          facebook?: string;
+          youtube?: string;
+          twitter?: string;
+          cmentarzUrl?: string;
+        };
+      } catch {}
+    }
+    return {};
+  }, [siteSettings]);
+
+  const handleBankCopy = async () => {
+    if (!siteContact.bankAccount) return;
+    try {
+      await navigator.clipboard.writeText(siteContact.bankAccount);
+      setBankCopied(true);
+      setTimeout(() => setBankCopied(false), 2000);
+    } catch {}
+  };
+
+  const socialLinks = [
+    { icon: Globe, label: "Cmentarz Parafii", url: siteContact.cmentarzUrl },
+    { icon: Facebook, label: "Facebook", url: siteContact.facebook },
+    { icon: Youtube, label: "YouTube", url: siteContact.youtube },
+    { icon: Twitter, label: "X / Twitter", url: siteContact.twitter },
+  ].filter((s) => !!s.url);
 
   const m = meta ?? DEFAULT_KANCELARIA_META;
   const visibleHours = (hours ?? DEFAULT_HOURS).filter((h) => h.visible);
@@ -644,6 +683,70 @@ export function KancelariaPage() {
                 </div>
               </div>
             </div>
+
+            {/* Bank account */}
+            {siteContact.bankAccount && (
+              <div
+                className="mt-6 rounded-2xl border border-border bg-card p-6"
+                data-ocid="kancelaria.bankaccount.card"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <Globe className="w-4 h-4 text-green-600" />
+                  </div>
+                  <p className="font-sans text-xs uppercase tracking-widest text-muted-foreground">
+                    Numer konta bankowego
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="font-mono text-base text-foreground tracking-wide flex-1">
+                    {siteContact.bankAccount}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleBankCopy}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 text-green-700 hover:bg-green-500/20 transition-colors font-sans text-sm font-light"
+                    data-ocid="kancelaria.bankaccount.button"
+                  >
+                    {bankCopied ? (
+                      <>
+                        <Check className="w-4 h-4" /> Skopiowano!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" /> Kopiuj numer konta
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Social media */}
+            {socialLinks.length > 0 && (
+              <div className="mt-6" data-ocid="kancelaria.social.section">
+                <p className="font-sans text-xs uppercase tracking-widest text-muted-foreground text-center mb-4">
+                  Media Społecznościowe
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {socialLinks.map(({ icon: Icon, label, url }) => (
+                    <a
+                      key={label}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-background hover:border-primary/40 hover:bg-accent/30 transition-all group"
+                      data-ocid={`kancelaria.social.${label.toLowerCase().replace(/[^a-z0-9]/g, "")}.link`}
+                    >
+                      <Icon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      <span className="font-sans text-sm font-light text-muted-foreground group-hover:text-foreground transition-colors">
+                        {label}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       </SectionReveal>

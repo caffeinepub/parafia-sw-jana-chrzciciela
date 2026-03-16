@@ -28,7 +28,14 @@ export function Navigation() {
   const navItems: NavItem[] = React.useMemo(() => {
     if (settings?.navigation) {
       try {
-        return JSON.parse(settings.navigation) as NavItem[];
+        const saved = JSON.parse(settings.navigation) as NavItem[];
+        const merged = [...saved];
+        for (const def of DEFAULT_NAV) {
+          if (!merged.find((s) => s.path === def.path)) {
+            merged.push(def);
+          }
+        }
+        return merged;
       } catch {
         return DEFAULT_NAV;
       }

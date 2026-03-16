@@ -42,6 +42,13 @@ import {
   getWeekDates,
   useLiturgy,
 } from "../hooks/useLiturgy";
+import {
+  type MinisterRegistration,
+  getRegistrations,
+  parseMinistersFromDescription,
+  saveRegistrations,
+  serializeMinistersToDescription,
+} from "../hooks/useMinisterRegistrations";
 
 // ============================================================
 // CONSTANTS
@@ -339,6 +346,34 @@ function EntryRow({ entry, index, isAdmin, onDelete }: EntryRowProps) {
             {detail}
           </p>
         )}
+        {isMass &&
+          (() => {
+            const ministers = parseMinistersFromDescription(entry.description);
+            return (
+              <>
+                {ministers.lectors.length > 0 && (
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                      LEKTOR
+                    </span>
+                    <span className="font-sans text-sm font-light text-muted-foreground/80">
+                      {ministers.lectors.join(", ")}
+                    </span>
+                  </div>
+                )}
+                {ministers.psalmists.length > 0 && (
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                      PSALMISTA
+                    </span>
+                    <span className="font-sans text-sm font-light text-muted-foreground/80">
+                      {ministers.psalmists.join(", ")}
+                    </span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
       </div>
 
       {/* Admin delete */}
@@ -678,12 +713,17 @@ function generatePDF(week: LiturgyWeek): void {
             ? "Msza Święta"
             : getServiceLabel(entry.serviceType);
           const detail = isMass ? entry.intention : entry.description;
+          const pdfMinisters = isMass
+            ? parseMinistersFromDescription(entry.description)
+            : { lectors: [], psalmists: [] };
           return `
           <div class="entry">
             <div class="entry-time">${entry.time}</div>
             <div class="entry-content">
               <div class="entry-type">${typeLabel}</div>
               ${detail ? `<div class="entry-detail">${detail}</div>` : ""}
+              ${pdfMinisters.lectors.length > 0 ? `<div class="entry-ministers">Lektor: ${pdfMinisters.lectors.join(", ")}</div>` : ""}
+              ${pdfMinisters.psalmists.length > 0 ? `<div class="entry-ministers">Psalmista: ${pdfMinisters.psalmists.join(", ")}</div>` : ""}
             </div>
           </div>`;
         })
@@ -811,6 +851,13 @@ function generatePDF(week: LiturgyWeek): void {
       margin-bottom: 2pt;
     }
 
+    .entry-ministers {
+      font-size: 9pt;
+      color: #7a6f65;
+      font-style: italic;
+      margin-top: 2pt;
+    }
+
     .entry-detail {
       font-size: 9.5pt;
       font-style: italic;
@@ -870,6 +917,249 @@ function generatePDF(week: LiturgyWeek): void {
     printWindow.print();
     printWindow.onafterprint = () => printWindow.close();
   }, 600);
+}
+
+// ============================================================
+// MINISTER REGISTRATION FORM
+// ============================================================
+
+interface MinisterRegistrationFormProps {
+  week: import("../backend").LiturgyWeek | null;
+  weekId: string;
+}
+
+function MinisterRegistrationForm({
+  week,
+  weekId,
+}: MinisterRegistrationFormProps) {
+  const [name, setName] = React.useState("");
+  const [role, setRole] = React.useState<"lektor" | "psalmista">("lektor");
+  const [entryId, setEntryId] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+
+  // Collect all mass entries from current week
+  const massOptions = React.useMemo(() => {
+    if (!week) return [];
+    const opts: {
+      id: string;
+      label: string;
+      dayIndex: number;
+      time: string;
+      date: string;
+    }[] = [];
+    const { start } = getWeekDates(weekId);
+    const allDays = ensureAllDays(week).days.sort(
+      (a, b) => Number(a.dayIndex) - Number(b.dayIndex),
+    );
+    for (const day of allDays) {
+      const dayIdx = Number(day.dayIndex);
+      const dayDate = new Date(start.getTime() + dayIdx * 86400000);
+      const dayName = DAY_NAMES[dayIdx];
+      const dd = String(dayDate.getDate()).padStart(2, "0");
+      const mmm = MONTH_NAMES_SHORT[dayDate.getMonth()];
+      const massEntries = day.entries
+        .filter((e) => e.entryType === "msza")
+        .sort((a, b) => a.time.localeCompare(b.time));
+      for (const e of massEntries) {
+        opts.push({
+          id: e.id,
+          label: `${dayName}, ${dd} ${mmm} – ${e.time}`,
+          dayIndex: dayIdx,
+          time: e.time,
+          date: `${dayName}, ${dd} ${mmm}`,
+        });
+      }
+    }
+    return opts;
+  }, [week, weekId]);
+
+  // Check if already submitted for this entry+role
+  const isAlreadySubmitted = React.useMemo(() => {
+    if (!entryId) return false;
+    const regs = getRegistrations();
+    return regs.some(
+      (r) =>
+        r.entryId === entryId && r.role === role && r.status !== "rejected",
+    );
+  }, [entryId, role]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !entryId) return;
+    if (isAlreadySubmitted) {
+      toast.error("Już zgłoszono posługę na tę Mszę dla tej roli.");
+      return;
+    }
+
+    setSubmitting(true);
+    const selected = massOptions.find((o) => o.id === entryId);
+    if (!selected) {
+      setSubmitting(false);
+      return;
+    }
+
+    const reg: MinisterRegistration = {
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      role,
+      weekId,
+      dayIndex: selected.dayIndex,
+      entryId,
+      massTime: selected.time,
+      massDate: selected.date,
+      status: "pending",
+      submittedAt: new Date().toISOString(),
+    };
+
+    const regs = getRegistrations();
+    saveRegistrations([...regs, reg]);
+
+    toast.success(
+      "Zgłoszenie zostało przesłane. Czeka na zatwierdzenie przez administratora.",
+    );
+    setName("");
+    setRole("lektor");
+    setEntryId("");
+    setSubmitting(false);
+  };
+
+  return (
+    <section
+      className="max-w-2xl mx-auto px-4 sm:px-6 pb-0 pt-12"
+      data-ocid="liturgia.minister_form.section"
+    >
+      <div className="mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.6 }}
+        >
+          <p className="font-sans text-xs uppercase tracking-[0.25em] text-muted-foreground mb-2">
+            Posługa
+          </p>
+          <h2 className="font-display text-3xl font-extralight text-foreground">
+            Zgłoszenie posługi
+          </h2>
+          <p className="font-sans text-sm font-light text-muted-foreground mt-2 leading-relaxed">
+            Lektorzy i Psalmiści — zgłoś swoją posługę na Mszę Świętą
+          </p>
+        </motion.div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25, duration: 0.5 }}
+        className="bg-card/60 border border-border/50 rounded-2xl p-6 sm:p-8"
+      >
+        {massOptions.length === 0 ? (
+          <p className="font-sans text-sm font-light text-muted-foreground text-center py-4">
+            Brak zaplanowanych Mszy Świętych w bieżącym tygodniu.
+          </p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Name */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="minister-name"
+                className="font-sans text-xs font-medium uppercase tracking-wider text-muted-foreground"
+              >
+                Imię i nazwisko
+              </Label>
+              <Input
+                id="minister-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Jan Kowalski"
+                required
+                className="font-sans font-light"
+                data-ocid="liturgia.minister_form.input"
+              />
+            </div>
+
+            {/* Role */}
+            <div className="space-y-1.5">
+              <Label className="font-sans text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Posługa
+              </Label>
+              <div className="flex gap-4">
+                {(["lektor", "psalmista"] as const).map((r) => (
+                  <label
+                    key={r}
+                    className="flex items-center gap-2 cursor-pointer group"
+                  >
+                    <input
+                      type="radio"
+                      name="minister-role"
+                      value={r}
+                      checked={role === r}
+                      onChange={() => setRole(r)}
+                      className="w-4 h-4 accent-primary"
+                      data-ocid="liturgia.minister_form.radio"
+                    />
+                    <span
+                      className={`font-sans text-sm font-light transition-colors capitalize ${r === "lektor" ? "text-blue-700 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-300" : "text-green-700 dark:text-green-400 group-hover:text-green-800 dark:group-hover:text-green-300"}`}
+                    >
+                      {r === "lektor" ? "Lektor" : "Psalmista"}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Mass selection */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="minister-mass"
+                className="font-sans text-xs font-medium uppercase tracking-wider text-muted-foreground"
+              >
+                Msza Święta
+              </Label>
+              <Select value={entryId} onValueChange={setEntryId}>
+                <SelectTrigger
+                  id="minister-mass"
+                  className="font-sans font-light"
+                  data-ocid="liturgia.minister_form.select"
+                >
+                  <SelectValue placeholder="Wybierz Mszę Świętą…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {massOptions.map((opt) => (
+                    <SelectItem
+                      key={opt.id}
+                      value={opt.id}
+                      className="font-sans font-light"
+                    >
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isAlreadySubmitted && (
+              <p className="font-sans text-xs text-amber-600 dark:text-amber-400">
+                Posługa na tę Mszę w tej roli została już zgłoszona.
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              disabled={
+                submitting || !name.trim() || !entryId || isAlreadySubmitted
+              }
+              className="font-sans font-light w-full sm:w-auto rounded-full px-8"
+              data-ocid="liturgia.minister_form.submit_button"
+            >
+              Zgłoś posługę
+            </Button>
+          </form>
+        )}
+      </motion.div>
+
+      <Separator className="mt-12" />
+    </section>
+  );
 }
 
 // ============================================================
@@ -1037,6 +1327,11 @@ export function LiturgiaPage() {
           onSave={saveWeek}
           isSaving={isSaving}
         />
+      )}
+
+      {/* ---- MINISTER FORM ---- */}
+      {!isLoading && week && (
+        <MinisterRegistrationForm week={week} weekId={weekId} />
       )}
 
       {/* ---- SCHEDULE ---- */}

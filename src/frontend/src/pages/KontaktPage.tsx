@@ -1,6 +1,17 @@
-import { Clock, Mail, MapPin, Phone } from "lucide-react";
+import {
+  Check,
+  Clock,
+  Copy,
+  Facebook,
+  Globe,
+  Mail,
+  MapPin,
+  Phone,
+  Twitter,
+  Youtube,
+} from "lucide-react";
 import { motion } from "motion/react";
-import React from "react";
+import React, { useState } from "react";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useSiteSettings } from "../hooks/useQueries";
 
@@ -9,6 +20,11 @@ interface ContactData {
   phone: string;
   email: string;
   hours: string;
+  bankAccount: string;
+  facebook: string;
+  youtube: string;
+  twitter: string;
+  cmentarzUrl: string;
 }
 
 const DEFAULT_CONTACT: ContactData = {
@@ -16,10 +32,16 @@ const DEFAULT_CONTACT: ContactData = {
   phone: "",
   email: "",
   hours: "",
+  bankAccount: "",
+  facebook: "",
+  youtube: "",
+  twitter: "",
+  cmentarzUrl: "",
 };
 
 export function KontaktPage() {
   const { data: settings } = useSiteSettings();
+  const [copied, setCopied] = useState(false);
 
   const contact: ContactData = React.useMemo(() => {
     if (settings?.contactData) {
@@ -31,6 +53,14 @@ export function KontaktPage() {
     }
     return DEFAULT_CONTACT;
   }, [settings]);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(contact.bankAccount);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
 
   const items = [
     {
@@ -58,6 +88,13 @@ export function KontaktPage() {
       placeholder: "Godziny pracy kancelarii parafialnej",
     },
   ];
+
+  const socialLinks = [
+    { icon: Globe, label: "Cmentarz Parafii", url: contact.cmentarzUrl },
+    { icon: Facebook, label: "Facebook", url: contact.facebook },
+    { icon: Youtube, label: "YouTube", url: contact.youtube },
+    { icon: Twitter, label: "X / Twitter", url: contact.twitter },
+  ].filter((s) => !!s.url);
 
   return (
     <main className="min-h-screen pt-nav">
@@ -123,7 +160,75 @@ export function KontaktPage() {
           ))}
         </div>
 
-        <SectionReveal delay={400}>
+        {/* Bank Account */}
+        {contact.bankAccount && (
+          <SectionReveal delay={450}>
+            <div
+              className="mt-8 bg-card rounded-xl p-8 border border-border"
+              data-ocid="kontakt.bankaccount.card"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <Globe className="w-4 h-4 text-green-600" />
+                </div>
+                <h2 className="font-sans text-xs uppercase tracking-[0.15em] text-muted-foreground">
+                  Numer konta bankowego
+                </h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <p className="font-mono text-lg text-foreground tracking-wide flex-1">
+                  {contact.bankAccount}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 text-green-700 hover:bg-green-500/20 transition-colors font-sans text-sm font-light"
+                  data-ocid="kontakt.bankaccount.button"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4" /> Skopiowano!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" /> Kopiuj numer konta
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </SectionReveal>
+        )}
+
+        {/* Social Media */}
+        {socialLinks.length > 0 && (
+          <SectionReveal delay={500}>
+            <div className="mt-8" data-ocid="kontakt.social.section">
+              <h2 className="font-sans text-xs uppercase tracking-[0.15em] text-muted-foreground text-center mb-6">
+                Media Społecznościowe
+              </h2>
+              <div className="flex flex-wrap justify-center gap-4">
+                {socialLinks.map(({ icon: Icon, label, url }) => (
+                  <a
+                    key={label}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-5 py-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-accent/30 transition-all group"
+                    data-ocid={`kontakt.social.${label.toLowerCase().replace(/[^a-z0-9]/g, "")}.link`}
+                  >
+                    <Icon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    <span className="font-sans text-sm font-light text-muted-foreground group-hover:text-foreground transition-colors">
+                      {label}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </SectionReveal>
+        )}
+
+        <SectionReveal delay={550}>
           <div className="mt-12 bg-muted/30 rounded-xl p-8 border border-dashed border-border text-center">
             <p className="font-editorial text-xl font-light text-muted-foreground italic">
               "Przyjdźcie do mnie wszyscy..."

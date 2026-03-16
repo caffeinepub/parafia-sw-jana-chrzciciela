@@ -146,10 +146,25 @@ export function savePrayers(prayers: PrayerStar[]) {
   localStorage.setItem("modlitwa_prayers", JSON.stringify(prayers));
 }
 
+const INTENTION_EXPIRY_DAYS = 9;
+
 export function loadMassIntentions(): MassIntention[] {
   try {
     const raw = localStorage.getItem("modlitwa_mass_intentions");
-    if (raw) return JSON.parse(raw) as MassIntention[];
+    if (raw) {
+      const all = JSON.parse(raw) as MassIntention[];
+      const now = Date.now();
+      const expiryMs = INTENTION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+      const valid = all.filter((i) => {
+        const age = now - new Date(i.createdAt).getTime();
+        return age < expiryMs;
+      });
+      // Persist cleaned list if any were removed
+      if (valid.length !== all.length) {
+        localStorage.setItem("modlitwa_mass_intentions", JSON.stringify(valid));
+      }
+      return valid;
+    }
   } catch {}
   return [];
 }
