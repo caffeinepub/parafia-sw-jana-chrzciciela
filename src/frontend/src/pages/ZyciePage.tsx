@@ -1,834 +1,437 @@
-import { X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  BookOpen,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon,
+} from "lucide-react";
+import { motion } from "motion/react";
+import React, { useCallback, useEffect, useState } from "react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ============================================================
+// TYPES
+// ============================================================
 
-export type ZycieCategory =
-  | "chrzty"
-  | "komunia"
-  | "bierzmowanie"
-  | "malzenstwa"
-  | "domojca"
-  | "wydarzenia";
-
-export interface ZycieEntry {
+export interface ZycieTile {
   id: string;
-  category: ZycieCategory;
-  year: number;
-  name: string;
-  date: string;
-  notes?: string;
+  title: string;
+  content: string;
+  image: string;
+  youtubeUrl: string;
+  audioUrl: string;
+}
+
+export interface ZycieYearData {
+  heroImage: string;
+  heroDescription: string;
+  tiles: ZycieTile[];
 }
 
 export interface ZycieData {
-  heroTitle: string;
-  heroSubtitle: string;
-  heroDesc: string;
-  entries: ZycieEntry[];
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-export const CATEGORY_META: Record<
-  ZycieCategory,
-  { label: string; color: string; glow: string; angle: number }
-> = {
-  chrzty: {
-    label: "Chrzty",
-    color: "#60A5FA",
-    glow: "rgba(96,165,250,0.45)",
-    angle: 0,
-  },
-  komunia: {
-    label: "I Komunia",
-    color: "#FBBF24",
-    glow: "rgba(251,191,36,0.45)",
-    angle: 60,
-  },
-  bierzmowanie: {
-    label: "Bierzmowanie",
-    color: "#F87171",
-    glow: "rgba(248,113,113,0.45)",
-    angle: 120,
-  },
-  malzenstwa: {
-    label: "Małżeństwa",
-    color: "#F472B6",
-    glow: "rgba(244,114,182,0.45)",
-    angle: 180,
-  },
-  domojca: {
-    label: "Dom Ojca",
-    color: "#A78BFA",
-    glow: "rgba(167,139,250,0.45)",
-    angle: 240,
-  },
-  wydarzenia: {
-    label: "Wydarzenia",
-    color: "#34D399",
-    glow: "rgba(52,211,153,0.45)",
-    angle: 300,
-  },
-};
-
-const CATEGORIES = Object.keys(CATEGORY_META) as ZycieCategory[];
-
-// ─── Demo data ────────────────────────────────────────────────────────────────
-
-function buildDemoData(): ZycieEntry[] {
-  const entries: ZycieEntry[] = [];
-  let id = 1;
-  const names = [
-    "Jan",
-    "Maria",
-    "Piotr",
-    "Anna",
-    "Tomasz",
-    "Katarzyna",
-    "Paweł",
-    "Agnieszka",
-    "Michał",
-    "Barbara",
-    "Krzysztof",
-    "Małgorzata",
-    "Andrzej",
-    "Elżbieta",
-    "Józef",
-    "Zofia",
-    "Stanisław",
-    "Helena",
-    "Marek",
-    "Teresa",
-    "Łukasz",
-    "Monika",
-  ];
-  const eventNames = [
-    "Odpust Parafialny",
-    "Kolędowanie Parafialne",
-    "Rekolekcje Wielkopostne",
-    "Pielgrzymka do Częstochowy",
-    "Festyn Rodzinny",
-    "Wigilia dla Samotnych",
-    "Procesja Bożego Ciała",
-    "Dzień Wspólnoty",
-    "Spotkanie Opłatkowe",
-    "Misje Parafialne",
-  ];
-  const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
-  const rDate = (y: number) => {
-    const m = String(Math.floor(Math.random() * 12) + 1).padStart(2, "0");
-    const d = String(Math.floor(Math.random() * 28) + 1).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+  heroTexts: {
+    title: string;
+    subtitle: string;
+    description: string;
   };
-  for (const year of [2024, 2025, 2026]) {
-    for (let i = 0; i < 9; i++)
-      entries.push({
-        id: String(id++),
-        category: "chrzty",
-        year,
-        name: pick(names),
-        date: rDate(year),
-      });
-    for (let i = 0; i < 8; i++)
-      entries.push({
-        id: String(id++),
-        category: "komunia",
-        year,
-        name: pick(names),
-        date: rDate(year),
-      });
-    for (let i = 0; i < 7; i++)
-      entries.push({
-        id: String(id++),
-        category: "bierzmowanie",
-        year,
-        name: pick(names),
-        date: rDate(year),
-        notes: `Hasło: "${["Miłość", "Nadzieja", "Wiara", "Pokój", "Radość"][i % 5]}"`,
-      });
-    for (let i = 0; i < 6; i++) {
-      const n1 = pick(names);
-      const n2 = pick(names);
-      entries.push({
-        id: String(id++),
-        category: "malzenstwa",
-        year,
-        name: `${n1} i ${n2}`,
-        date: rDate(year),
-      });
-    }
-    for (let i = 0; i < 8; i++)
-      entries.push({
-        id: String(id++),
-        category: "domojca",
-        year,
-        name: pick(names),
-        date: rDate(year),
-      });
-    for (let i = 0; i < 7; i++)
-      entries.push({
-        id: String(id++),
-        category: "wydarzenia",
-        year,
-        name: pick(eventNames),
-        date: rDate(year),
-      });
-  }
-  return entries;
+  years: {
+    [year: string]: ZycieYearData;
+  };
 }
 
-const DEFAULT_ZYCIE_DATA: ZycieData = {
-  heroTitle: "Życie parafii",
-  heroSubtitle: "Wzrastamy razem w wierze",
-  heroDesc:
-    "Parafia to nie tylko miejsce. To wspólnota życia.\nOd Chrztu Świętego, przez sakramenty, aż po przejście do Domu Ojca – tworzymy jeden witraż życia zakorzenionego w Chrystusie.",
-  entries: buildDemoData(),
+const DEFAULT_YEARS = ["2024", "2025", "2026"];
+
+const DEFAULT_DATA: ZycieData = {
+  heroTexts: {
+    title: "Życie",
+    subtitle: "Życie naszej wspólnoty w świetle wiary",
+    description:
+      "Każdy rok przynosi nowe wydarzenia, nowe historie i nowe świadectwa życia naszej parafii.",
+  },
+  years: {
+    "2024": { heroImage: "", heroDescription: "", tiles: [] },
+    "2025": { heroImage: "", heroDescription: "", tiles: [] },
+    "2026": { heroImage: "", heroDescription: "", tiles: [] },
+  },
 };
 
-function loadData(): ZycieData {
+function loadZycieData(): ZycieData {
   try {
-    const raw = localStorage.getItem("zycieData");
-    if (raw) return JSON.parse(raw) as ZycieData;
+    const raw = localStorage.getItem("zycie_data");
+    if (!raw) return DEFAULT_DATA;
+    const parsed = JSON.parse(raw) as ZycieData;
+    // ensure default years exist
+    for (const y of DEFAULT_YEARS) {
+      if (!parsed.years[y]) {
+        parsed.years[y] = { heroImage: "", heroDescription: "", tiles: [] };
+      }
+    }
+    return parsed;
   } catch {
-    /* ignore */
+    return DEFAULT_DATA;
   }
-  return DEFAULT_ZYCIE_DATA;
 }
 
-// ─── SVG Helpers ──────────────────────────────────────────────────────────────
+// ============================================================
+// YOUTUBE EMBED
+// ============================================================
 
-const CX = 300;
-const CY = 300;
-const R_OUTER = 258;
-const R_MID2 = 200;
-const R_MID1 = 140;
-const R_INNER = 80;
-
-function polarToXY(angleDeg: number, r: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) };
+function getYoutubeEmbedUrl(url: string): string | null {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/|youtu\.be\/)([\w-]{11})/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return `https://www.youtube.com/embed/${m[1]}`;
+  }
+  return null;
 }
 
-function sectorPath(
-  startDeg: number,
-  endDeg: number,
-  rOuter: number,
-  rInner: number,
-) {
-  const s1 = polarToXY(startDeg, rInner);
-  const s2 = polarToXY(startDeg, rOuter);
-  const e1 = polarToXY(endDeg, rOuter);
-  const e2 = polarToXY(endDeg, rInner);
-  const large = endDeg - startDeg > 180 ? 1 : 0;
-  return [
-    `M ${s1.x} ${s1.y}`,
-    `L ${s2.x} ${s2.y}`,
-    `A ${rOuter} ${rOuter} 0 ${large} 1 ${e1.x} ${e1.y}`,
-    `L ${e2.x} ${e2.y}`,
-    `A ${rInner} ${rInner} 0 ${large} 0 ${s1.x} ${s1.y}`,
-    "Z",
-  ].join(" ");
-}
+// ============================================================
+// TILE COMPONENT
+// ============================================================
 
-function arcTextPath(r: number, startDeg: number, endDeg: number) {
-  const s = polarToXY(startDeg, r);
-  const e = polarToXY(endDeg, r);
-  const large = endDeg - startDeg > 180 ? 1 : 0;
-  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
-}
+const PREVIEW_LENGTH = 200;
 
-// ─── Particles ────────────────────────────────────────────────────────────────
-
-interface Particle {
-  id: number;
-  r: number;
-  orbitR: number;
-  startAngle: number;
-  duration: number;
-  color: string;
-  opacity: number;
-}
-
-const PARTICLES: Particle[] = Array.from({ length: 14 }, (_, i) => ({
-  id: i,
-  r: 2 + Math.random() * 2.5,
-  orbitR: 278 + Math.random() * 32,
-  startAngle: (i / 14) * 360,
-  duration: 24 + Math.random() * 20,
-  color: ["#F9D76B", "#FFFDE7", "#FFF9C4", "#FFF176"][i % 4],
-  opacity: 0.25 + Math.random() * 0.35,
-}));
-
-// ─── Rosette ─────────────────────────────────────────────────────────────────────
-
-interface RosetteProps {
-  entries: ZycieEntry[];
-  year: number;
-  onSectorClick: (cat: ZycieCategory) => void;
-  activeCat: ZycieCategory | null;
-}
-
-function Rosette({ entries, year, onSectorClick, activeCat }: RosetteProps) {
-  const [hovered, setHovered] = useState<ZycieCategory | null>(null);
-
-  const counts = useMemo(() => {
-    const c: Partial<Record<ZycieCategory, number>> = {};
-    for (const e of entries.filter((e) => e.year === year)) {
-      c[e.category] = (c[e.category] ?? 0) + 1;
-    }
-    return c;
-  }, [entries, year]);
-
-  const total = useMemo(
-    () => Object.values(counts).reduce((a, b) => a + b, 0),
-    [counts],
-  );
+function ZycieTileCard({ tile, index }: { tile: ZycieTile; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const embedUrl = getYoutubeEmbedUrl(tile.youtubeUrl);
+  const isLong = tile.content.length > PREVIEW_LENGTH;
+  const displayContent =
+    isLong && !expanded
+      ? `${tile.content.slice(0, PREVIEW_LENGTH)}…`
+      : tile.content;
 
   return (
-    <svg
-      viewBox="0 0 600 600"
-      className="w-full max-w-[540px] mx-auto"
-      aria-label="Rozeta Życia Parafii"
-      role="img"
-      style={{ filter: "drop-shadow(0 0 40px rgba(251,191,36,0.08))" }}
+    <motion.article
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5, delay: index * 0.08 }}
+      whileHover={{ y: -3, boxShadow: "0 12px 40px 0 rgba(0,0,0,0.10)" }}
+      className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm transition-shadow"
+      data-ocid={`zycie.tile.card.${index + 1}`}
     >
-      <title>Rozeta Życia Parafii – {year}</title>
-      <defs>
-        <radialGradient id="centerGold" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#FEF9C3" stopOpacity="1" />
-          <stop offset="60%" stopColor="#F59E0B" stopOpacity="1" />
-          <stop offset="100%" stopColor="#92400E" stopOpacity="1" />
-        </radialGradient>
-        <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#1a1a2e" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#0a0a14" stopOpacity="0" />
-        </radialGradient>
-        {CATEGORIES.map((cat) => (
-          <filter
-            key={cat}
-            id={`glow-${cat}`}
-            x="-20%"
-            y="-20%"
-            width="140%"
-            height="140%"
-          >
-            <feGaussianBlur stdDeviation="6" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        ))}
-        {CATEGORIES.map((cat, i) => (
-          <path
-            key={`arc-${cat}`}
-            id={`arc-${cat}`}
-            d={arcTextPath(R_MID2 - 18, i * 60 + 5, (i + 1) * 60 - 5)}
-            fill="none"
+      {tile.image && (
+        <div className="aspect-video overflow-hidden">
+          <img
+            src={tile.image}
+            alt={tile.title}
+            className="w-full h-full object-cover"
           />
-        ))}
-      </defs>
-
-      <circle cx={CX} cy={CY} r={R_OUTER + 10} fill="url(#bgGrad)" />
-
-      {CATEGORIES.map((cat, i) => {
-        const meta = CATEGORY_META[cat];
-        const startDeg = i * 60;
-        const endDeg = (i + 1) * 60;
-        const isHov = hovered === cat || activeCat === cat;
-        const mid = polarToXY(startDeg + 30, (R_MID1 + R_INNER) / 2);
-
-        return (
-          <g
-            key={cat}
-            tabIndex={0}
-            aria-label={`${meta.label}: ${counts[cat] ?? 0} wpisów`}
-            onClick={() => onSectorClick(cat)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") onSectorClick(cat);
-            }}
-            onMouseEnter={() => setHovered(cat)}
-            onMouseLeave={() => setHovered(null)}
-            style={{ cursor: "pointer" }}
-          >
-            <path
-              d={sectorPath(startDeg, endDeg, R_OUTER, R_MID2)}
-              fill={meta.color}
-              fillOpacity={isHov ? 0.72 : 0.42}
-              stroke="#0a0a14"
-              strokeWidth="1.5"
-              style={{ transition: "fill-opacity 0.3s" }}
-            />
-            <path
-              d={sectorPath(startDeg, endDeg, R_MID2, R_MID1)}
-              fill={meta.color}
-              fillOpacity={isHov ? 0.85 : 0.58}
-              stroke="#0a0a14"
-              strokeWidth="1.5"
-              style={{ transition: "fill-opacity 0.3s" }}
-            />
-            <path
-              d={sectorPath(startDeg, endDeg, R_MID1, R_INNER)}
-              fill={meta.color}
-              fillOpacity={isHov ? 0.92 : 0.68}
-              stroke="#0a0a14"
-              strokeWidth="1.5"
-              style={{ transition: "fill-opacity 0.3s" }}
-              filter={isHov ? `url(#glow-${cat})` : undefined}
-            />
-            <text
-              x={mid.x}
-              y={mid.y + 6}
-              textAnchor="middle"
-              fill="#fff"
-              fontWeight="700"
-              fontSize="18"
-              fontFamily="Playfair Display, serif"
-              opacity={isHov ? 1 : 0.85}
-              style={{ pointerEvents: "none", transition: "opacity 0.3s" }}
-            >
-              {counts[cat] ?? 0}
-            </text>
-            <text
-              style={{ pointerEvents: "none", userSelect: "none" }}
-              fill="#fff"
-              fontSize="11"
-              fontWeight="600"
-              letterSpacing="0.05em"
-              opacity={isHov ? 1 : 0.75}
-              fontFamily="Plus Jakarta Sans, sans-serif"
-            >
-              <textPath
-                href={`#arc-${cat}`}
-                startOffset="50%"
-                textAnchor="middle"
-              >
-                {meta.label.toUpperCase()}
-              </textPath>
-            </text>
-          </g>
-        );
-      })}
-
-      {[R_MID1, R_MID2].map((r) => (
-        <circle
-          key={r}
-          cx={CX}
-          cy={CY}
-          r={r}
-          fill="none"
-          stroke="#0a0a14"
-          strokeWidth="2"
-          opacity="0.8"
-        />
-      ))}
-      <circle
-        cx={CX}
-        cy={CY}
-        r={R_OUTER}
-        fill="none"
-        stroke="#0a0a14"
-        strokeWidth="2"
-        opacity="0.6"
-      />
-
-      {CATEGORIES.map((cat, i) => {
-        const p = polarToXY(i * 60, R_OUTER);
-        return (
-          <line
-            key={cat}
-            x1={CX}
-            y1={CY}
-            x2={p.x}
-            y2={p.y}
-            stroke="#0a0a14"
-            strokeWidth="2"
-            opacity="0.7"
-          />
-        );
-      })}
-
-      {PARTICLES.map((p) => (
-        <circle key={p.id} r={p.r} fill={p.color} opacity={p.opacity}>
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from={`${p.startAngle} ${CX} ${CY}`}
-            to={`${p.startAngle + 360} ${CX} ${CY}`}
-            dur={`${p.duration}s`}
-            repeatCount="indefinite"
-          />
-          <animateMotion
-            dur={`${p.duration}s`}
-            repeatCount="indefinite"
-            path={`M ${CX + p.orbitR} ${CY} A ${p.orbitR} ${p.orbitR} 0 1 1 ${CX + p.orbitR - 0.001} ${CY}`}
-          />
-        </circle>
-      ))}
-
-      <circle cx={CX} cy={CY} r={R_INNER} fill="url(#centerGold)">
-        <animate
-          attributeName="r"
-          values={`${R_INNER};${R_INNER + 4};${R_INNER}`}
-          dur="3s"
-          repeatCount="indefinite"
-        />
-      </circle>
-      <circle
-        cx={CX}
-        cy={CY}
-        r={R_INNER}
-        fill="none"
-        stroke="#92400E"
-        strokeWidth="2"
-        opacity="0.5"
-      />
-
-      <text
-        x={CX}
-        y={CY - 6}
-        textAnchor="middle"
-        fill="#fff"
-        fontWeight="800"
-        fontSize="26"
-        fontFamily="Playfair Display, serif"
-        style={{ pointerEvents: "none" }}
-      >
-        {year}
-      </text>
-      <text
-        x={CX}
-        y={CY + 16}
-        textAnchor="middle"
-        fill="#FEF9C3"
-        fontWeight="500"
-        fontSize="12"
-        fontFamily="Plus Jakarta Sans, sans-serif"
-        opacity="0.9"
-        style={{ pointerEvents: "none" }}
-      >
-        {total} wpisów
-      </text>
-    </svg>
-  );
-}
-
-// ─── Detail Panel ─────────────────────────────────────────────────────────────
-
-function DetailPanel({
-  cat,
-  entries,
-  year,
-  onClose,
-}: {
-  cat: ZycieCategory;
-  entries: ZycieEntry[];
-  year: number;
-  onClose: () => void;
-}) {
-  const meta = CATEGORY_META[cat];
-  const filtered = entries
-    .filter((e) => e.category === cat && e.year === year)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  const fmt = (d: string) => {
-    try {
-      return new Date(d).toLocaleDateString("pl-PL", {
-        day: "numeric",
-        month: "long",
-      });
-    } catch {
-      return d;
-    }
-  };
-
-  return (
-    <motion.div
-      initial={{ x: "100%", opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: "100%", opacity: 0 }}
-      transition={{ type: "spring", stiffness: 320, damping: 32 }}
-      className="fixed top-0 right-0 h-full w-full max-w-sm z-50 flex flex-col"
-      style={{
-        background: "rgba(10,10,20,0.97)",
-        backdropFilter: "blur(16px)",
-        borderLeft: `2px solid ${meta.color}44`,
-      }}
-      data-ocid="zycie.panel"
-    >
-      <div
-        className="flex items-center justify-between px-6 py-5"
-        style={{ borderBottom: `1px solid ${meta.color}33` }}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-4 h-4 rounded-full"
-            style={{
-              background: meta.color,
-              boxShadow: `0 0 10px ${meta.glow}`,
-            }}
-          />
-          <h2
-            className="font-display text-lg font-semibold"
-            style={{ color: meta.color }}
-          >
-            {meta.label}
-          </h2>
-          <span className="font-sans text-sm text-white/40">{year}</span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
-          data-ocid="zycie.panel.close_button"
-        >
-          <X className="w-4 h-4 text-white/60" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
-        {filtered.length === 0 ? (
-          <div
-            className="text-center py-12 text-white/30 font-sans text-sm"
-            data-ocid="zycie.panel.empty_state"
-          >
-            Brak wpisów w tym roku
+      )}
+      {embedUrl && (
+        <div className="aspect-video">
+          <iframe
+            src={embedUrl}
+            title={tile.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="w-full h-full"
+          />
+        </div>
+      )}
+      <div className="p-5 space-y-3">
+        {tile.title && (
+          <h3 className="font-display text-lg font-semibold text-foreground tracking-tight">
+            {tile.title}
+          </h3>
+        )}
+        {tile.content && (
+          <div>
+            <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">
+              {displayContent}
+            </p>
+            {isLong && (
+              <button
+                type="button"
+                onClick={() => setExpanded((e) => !e)}
+                className="mt-2 flex items-center gap-1 text-xs font-sans text-primary/70 hover:text-primary transition-colors"
+                data-ocid={`zycie.tile.toggle.${index + 1}`}
+              >
+                {expanded ? (
+                  <>
+                    <ChevronUp className="w-3.5 h-3.5" />
+                    Zwiń
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    Czytaj więcej
+                  </>
+                )}
+              </button>
+            )}
           </div>
-        ) : (
-          filtered.map((e, idx) => (
-            <motion.div
-              key={e.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.04 }}
-              className="rounded-lg px-4 py-3"
-              style={{
-                background: `${meta.color}12`,
-                borderLeft: `3px solid ${meta.color}60`,
-              }}
-              data-ocid={`zycie.panel.item.${idx + 1}`}
+        )}
+        {tile.audioUrl && (
+          <div className="pt-1">
+            <audio
+              controls
+              src={tile.audioUrl}
+              className="w-full h-9"
+              style={{ accentColor: "var(--color-primary)" }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-sans text-sm font-medium text-white/90">
-                  {e.name}
-                </span>
-                <span className="font-sans text-xs text-white/40 whitespace-nowrap mt-0.5">
-                  {fmt(e.date)}
-                </span>
-              </div>
-              {e.notes && (
-                <p className="font-sans text-xs text-white/50 mt-1">
-                  {e.notes}
-                </p>
-              )}
-            </motion.div>
-          ))
+              <track kind="captions" />
+            </audio>
+          </div>
         )}
       </div>
+    </motion.article>
+  );
+}
+
+// ============================================================
+// CENTRAL YEAR IMAGE
+// ============================================================
+
+function CentralYearImage({
+  yearData,
+  year,
+}: {
+  yearData: ZycieYearData;
+  year: string;
+}) {
+  return (
+    <motion.div
+      key={year}
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
+      className="flex flex-col items-center gap-4"
+    >
+      <div
+        className="w-full rounded-3xl overflow-hidden shadow-lg border border-border/40"
+        style={{ aspectRatio: "4/3" }}
+        data-ocid="zycie.year.card"
+      >
+        {yearData.heroImage ? (
+          <img
+            src={yearData.heroImage}
+            alt={`Rok ${year}`}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-muted/60 to-muted/90 flex flex-col items-center justify-center gap-3">
+            <ImageIcon className="w-12 h-12 text-muted-foreground/40" />
+            <p className="text-muted-foreground/60 text-sm font-sans">
+              Obraz roku {year}
+            </p>
+            <p className="text-muted-foreground/40 text-xs font-sans">
+              Kliknij, aby dodać zdjęcie w panelu admina
+            </p>
+          </div>
+        )}
+      </div>
+      {yearData.heroDescription && (
+        <p className="text-center text-muted-foreground font-sans text-sm leading-relaxed max-w-xs italic">
+          {yearData.heroDescription}
+        </p>
+      )}
     </motion.div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ============================================================
+// MAIN PAGE
+// ============================================================
 
 export function ZyciePage() {
-  const [data, setData] = useState<ZycieData>(loadData);
-  const [year, setYear] = useState(2026);
-  const [activeCat, setActiveCat] = useState<ZycieCategory | null>(null);
+  const [data, setData] = useState<ZycieData>(loadZycieData);
+  const [selectedYear, setSelectedYear] = useState("2026");
+
+  const handleStorage = useCallback(() => {
+    setData(loadZycieData());
+  }, []);
 
   useEffect(() => {
-    const onStorage = () => setData(loadData());
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [handleStorage]);
 
-  const handleSectorClick = useCallback((cat: ZycieCategory) => {
-    setActiveCat((prev) => (prev === cat ? null : cat));
-  }, []);
-
-  const countForYear = useCallback(
-    (cat: ZycieCategory) =>
-      data.entries.filter((e) => e.category === cat && e.year === year).length,
-    [data.entries, year],
+  const { heroTexts } = data;
+  const availableYears = Object.keys(data.years).sort(
+    (a, b) => Number(b) - Number(a),
   );
+  const yearData = data.years[selectedYear] ?? {
+    heroImage: "",
+    heroDescription: "",
+    tiles: [],
+  };
+
+  const tiles = yearData.tiles ?? [];
+  const leftTiles = tiles.filter((_, i) => i % 2 === 0);
+  const rightTiles = tiles.filter((_, i) => i % 2 === 1);
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="pt-nav">
       {/* HERO */}
-      <section className="relative min-h-[46vh] flex items-end pb-16 pt-nav overflow-hidden">
-        <div className="absolute inset-0">
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(ellipse 80% 60% at 60% 0%, #1a1032 0%, #0d0a1a 45%, #060510 100%)",
-            }}
-          />
-          <svg
-            className="absolute inset-0 w-full h-full opacity-10"
-            viewBox="0 0 1440 600"
-            preserveAspectRatio="xMidYMid slice"
-            aria-hidden="true"
-          >
-            {[1500, 1620, 1740, 1860, 1980, 2100].map((x2) => (
-              <line
-                key={x2}
-                x1="720"
-                y1="-50"
-                x2={String(x2)}
-                y2="650"
-                stroke="#F59E0B"
-                strokeWidth="1"
-                opacity="0.6"
-              />
-            ))}
-          </svg>
-        </div>
-        <div className="relative container mx-auto px-6 max-w-4xl">
+      <section className="relative min-h-[50vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-primary/5 via-background to-background">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_60%_0%,oklch(var(--primary)/0.07),transparent_70%)]" />
+        <div className="relative z-10 text-center px-6 py-20 max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
-            className="space-y-4"
           >
-            <div className="inline-flex items-center gap-2">
-              <div className="w-px h-6 bg-amber-400/60" />
-              <span className="font-sans text-xs tracking-widest uppercase text-amber-400/80">
-                Parafia
-              </span>
-            </div>
-            <h1
-              className="font-display text-5xl md:text-6xl lg:text-7xl font-light text-white leading-none"
-              style={{ textShadow: "0 0 40px rgba(251,191,36,0.18)" }}
-            >
-              {data.heroTitle}
-            </h1>
-            <p className="font-display text-lg md:text-xl text-amber-200/80 font-light italic">
-              {data.heroSubtitle}
+            <p className="font-sans text-xs tracking-[0.25em] uppercase text-primary/70 mb-4">
+              Parafia św. Jana Chrzciciela
             </p>
-            <p className="font-sans text-sm md:text-base text-white/50 max-w-lg leading-relaxed whitespace-pre-line">
-              {data.heroDesc}
+            <h1 className="font-display text-6xl md:text-7xl font-bold text-foreground mb-5 tracking-tight">
+              {heroTexts.title}
+            </h1>
+            <div className="w-12 h-px bg-primary/40 mx-auto mb-6" />
+            <p className="font-display text-xl md:text-2xl font-light text-foreground/80 mb-4 tracking-wide">
+              {heroTexts.subtitle}
+            </p>
+            <p className="font-sans text-base text-muted-foreground leading-relaxed max-w-lg mx-auto">
+              {heroTexts.description}
             </p>
           </motion.div>
         </div>
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 animate-bounce opacity-30">
+          <ChevronDown className="w-5 h-5 text-foreground" />
+        </div>
       </section>
 
-      {/* ROSETTE */}
-      <section
-        className="relative py-16 px-4"
-        style={{
-          background: "linear-gradient(180deg, #060510 0%, #080614 100%)",
-        }}
-      >
-        {/* Year picker */}
-        <div className="flex justify-center mb-8">
+      {/* YEAR SELECTOR */}
+      <section className="py-10 px-6">
+        <div className="max-w-6xl mx-auto flex flex-col items-center gap-4">
           <div
-            className="inline-flex items-center gap-1 rounded-full p-1"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
+            className="flex items-center gap-2 flex-wrap justify-center"
+            data-ocid="zycie.year.toggle"
           >
-            {[2024, 2025, 2026].map((y) => (
+            {availableYears.map((y) => (
               <button
                 key={y}
                 type="button"
-                onClick={() => setYear(y)}
-                className="px-5 py-1.5 rounded-full font-sans text-sm font-medium transition-all duration-300"
-                style={{
-                  background:
-                    year === y ? "rgba(251,191,36,0.18)" : "transparent",
-                  color: year === y ? "#FBBF24" : "rgba(255,255,255,0.45)",
-                  border:
-                    year === y
-                      ? "1px solid rgba(251,191,36,0.4)"
-                      : "1px solid transparent",
-                }}
-                data-ocid="zycie.year.toggle"
+                onClick={() => setSelectedYear(y)}
+                data-ocid="zycie.year.tab"
+                className={`px-5 py-2 rounded-full text-sm font-sans font-medium transition-all duration-200 border ${
+                  selectedYear === y
+                    ? "bg-foreground text-background border-foreground shadow-sm"
+                    : "bg-transparent text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
+                }`}
               >
                 {y}
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="flex justify-center">
-          <Rosette
-            entries={data.entries}
-            year={year}
-            onSectorClick={handleSectorClick}
-            activeCat={activeCat}
-          />
-        </div>
-
-        {/* Legend */}
-        <div className="mt-10 grid grid-cols-3 md:grid-cols-6 gap-3 max-w-2xl mx-auto">
-          {CATEGORIES.map((cat) => {
-            const meta = CATEGORY_META[cat];
-            const count = countForYear(cat);
-            return (
-              <motion.button
-                key={cat}
-                type="button"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => handleSectorClick(cat)}
-                className="flex flex-col items-center gap-2 rounded-xl p-3 transition-all duration-300"
-                style={{
-                  background:
-                    activeCat === cat
-                      ? `${meta.color}18`
-                      : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${activeCat === cat ? `${meta.color}55` : "rgba(255,255,255,0.07)"}`,
-                }}
-                data-ocid={`zycie.${cat}.toggle`}
-              >
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{
-                    background: meta.color,
-                    boxShadow: `0 0 8px ${meta.glow}`,
-                  }}
-                />
-                <span className="font-sans text-xs text-white/60 text-center leading-tight">
-                  {meta.label}
-                </span>
-                <span
-                  className="font-display text-xl font-bold"
-                  style={{ color: meta.color }}
-                >
-                  {count}
-                </span>
-              </motion.button>
-            );
-          })}
+          <div className="flex items-center gap-2 text-muted-foreground/50">
+            <Calendar className="w-3.5 h-3.5" />
+            <span className="text-xs font-sans tracking-wide">
+              Kronika życia parafii
+            </span>
+          </div>
         </div>
       </section>
 
-      {/* Detail panel */}
-      <AnimatePresence>
-        {activeCat && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setActiveCat(null)}
-              className="fixed inset-0 z-40"
-              style={{ background: "rgba(0,0,0,0.5)" }}
-            />
-            <DetailPanel
-              cat={activeCat}
-              entries={data.entries}
-              year={year}
-              onClose={() => setActiveCat(null)}
-            />
-          </>
-        )}
-      </AnimatePresence>
+      {/* THREE-COLUMN LAYOUT */}
+      <section className="pb-20 px-6">
+        <div className="max-w-6xl mx-auto">
+          {tiles.length === 0 ? (
+            // NO TILES — still show center image
+            <div className="flex flex-col items-center gap-8">
+              <div className="w-full max-w-lg">
+                <CentralYearImage yearData={yearData} year={selectedYear} />
+              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+                data-ocid="zycie.tiles.empty_state"
+              >
+                <BookOpen className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+                <p className="text-muted-foreground font-sans text-sm">
+                  Brak kafelków. Dodaj pierwszy w panelu admina.
+                </p>
+              </motion.div>
+            </div>
+          ) : (
+            // THREE-COLUMN GRID
+            <>
+              {/* Desktop 3-col */}
+              <div className="hidden md:grid md:grid-cols-[1fr_1.7fr_1fr] gap-8 items-start">
+                {/* LEFT COLUMN */}
+                <div className="flex flex-col gap-6">
+                  {leftTiles.length === 0 ? (
+                    <div className="h-24" />
+                  ) : (
+                    leftTiles.map((tile, i) => (
+                      <ZycieTileCard key={tile.id} tile={tile} index={i * 2} />
+                    ))
+                  )}
+                </div>
 
-      <div className="py-8" style={{ background: "#060510" }} />
+                {/* CENTER COLUMN */}
+                <div className="flex flex-col gap-6 items-center">
+                  <CentralYearImage yearData={yearData} year={selectedYear} />
+                </div>
+
+                {/* RIGHT COLUMN */}
+                <div className="flex flex-col gap-6">
+                  {rightTiles.length === 0 ? (
+                    <div className="h-24" />
+                  ) : (
+                    rightTiles.map((tile, i) => (
+                      <ZycieTileCard
+                        key={tile.id}
+                        tile={tile}
+                        index={i * 2 + 1}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Mobile layout */}
+              <div className="md:hidden flex flex-col gap-6">
+                <CentralYearImage yearData={yearData} year={selectedYear} />
+                {tiles.map((tile, i) => (
+                  <ZycieTileCard key={tile.id} tile={tile} index={i} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* ARCHIVE */}
+      {availableYears.length > 1 && (
+        <section className="py-16 border-t border-border/40 px-6">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="font-display text-2xl font-semibold text-foreground mb-8 text-center tracking-tight">
+              Archiwum
+            </h2>
+            <div
+              className="flex flex-wrap gap-3 justify-center"
+              data-ocid="zycie.archive.list"
+            >
+              {availableYears.map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => {
+                    setSelectedYear(y);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  data-ocid="zycie.archive.link"
+                  className={`group flex items-center gap-2 px-6 py-3 rounded-xl border font-sans text-sm transition-all duration-200 ${
+                    selectedYear === y
+                      ? "bg-foreground/5 border-foreground/20 text-foreground font-medium"
+                      : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground"
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5 opacity-50" />
+                  {y}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </main>
   );
 }

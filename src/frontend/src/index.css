@@ -1,0 +1,505 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   FONT FACES — Self-hosted variable fonts
+   ============================================================ */
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("/assets/fonts/Fraunces.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/assets/fonts/InstrumentSerif.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "General Sans";
+  src: url("/assets/fonts/GeneralSans.woff2") format("woff2");
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================================
+   BASE THEME TOKENS — Jordan (default, cool whites & soft blues)
+   ============================================================ */
+
+:root,
+[data-theme="jordan"] {
+  --radius: 0.5rem;
+
+  /* Core palette */
+  --background: 0.985 0.003 240;
+  --foreground: 0.18 0.02 250;
+
+  --card: 0.995 0.001 240;
+  --card-foreground: 0.18 0.02 250;
+
+  --popover: 0.995 0.001 240;
+  --popover-foreground: 0.18 0.02 250;
+
+  --primary: 0.38 0.09 245;
+  --primary-foreground: 0.99 0.002 240;
+
+  --secondary: 0.94 0.015 235;
+  --secondary-foreground: 0.28 0.04 245;
+
+  --muted: 0.93 0.012 230;
+  --muted-foreground: 0.52 0.03 240;
+
+  --accent: 0.88 0.045 220;
+  --accent-foreground: 0.22 0.04 245;
+
+  --destructive: 0.577 0.245 27.325;
+  --destructive-foreground: 0.985 0 0;
+
+  --border: 0.88 0.018 230;
+  --input: 0.88 0.018 230;
+  --ring: 0.55 0.08 240;
+
+  /* Theme accent for hover glow */
+  --theme-glow: 0.7 0.12 225;
+  --theme-hero-from: 0.97 0.01 240;
+  --theme-hero-to: 0.93 0.03 230;
+  --nav-height: 72px;
+
+  /* Chart */
+  --chart-1: 0.55 0.12 245;
+  --chart-2: 0.65 0.09 220;
+  --chart-3: 0.75 0.06 200;
+  --chart-4: 0.45 0.14 260;
+  --chart-5: 0.35 0.1 250;
+
+  /* Sidebar */
+  --sidebar: 0.97 0.006 240;
+  --sidebar-foreground: 0.18 0.02 250;
+  --sidebar-primary: 0.38 0.09 245;
+  --sidebar-primary-foreground: 0.99 0.002 240;
+  --sidebar-accent: 0.92 0.018 230;
+  --sidebar-accent-foreground: 0.28 0.04 245;
+  --sidebar-border: 0.88 0.018 230;
+  --sidebar-ring: 0.55 0.08 240;
+}
+
+/* ============================================================
+   PUSTYNIA — warm sandy tones, golden desert light
+   ============================================================ */
+
+[data-theme="pustynia"] {
+  --background: 0.97 0.018 75;
+  --foreground: 0.22 0.04 55;
+
+  --card: 0.99 0.01 80;
+  --card-foreground: 0.22 0.04 55;
+
+  --popover: 0.99 0.01 80;
+  --popover-foreground: 0.22 0.04 55;
+
+  --primary: 0.52 0.12 65;
+  --primary-foreground: 0.99 0.005 80;
+
+  --secondary: 0.92 0.04 70;
+  --secondary-foreground: 0.32 0.06 58;
+
+  --muted: 0.91 0.03 72;
+  --muted-foreground: 0.55 0.05 65;
+
+  --accent: 0.86 0.08 72;
+  --accent-foreground: 0.25 0.05 55;
+
+  --destructive: 0.577 0.245 27.325;
+  --destructive-foreground: 0.985 0 0;
+
+  --border: 0.86 0.04 68;
+  --input: 0.86 0.04 68;
+  --ring: 0.62 0.1 65;
+
+  --theme-glow: 0.72 0.14 70;
+  --theme-hero-from: 0.96 0.024 78;
+  --theme-hero-to: 0.9 0.055 68;
+
+  --sidebar: 0.95 0.025 74;
+  --sidebar-foreground: 0.22 0.04 55;
+  --sidebar-primary: 0.52 0.12 65;
+  --sidebar-primary-foreground: 0.99 0.005 80;
+  --sidebar-accent: 0.9 0.04 70;
+  --sidebar-accent-foreground: 0.32 0.06 58;
+  --sidebar-border: 0.86 0.04 68;
+  --sidebar-ring: 0.62 0.1 65;
+}
+
+/* ============================================================
+   OGIEŃ — deep reds, warm ambers, passion
+   ============================================================ */
+
+[data-theme="ogien"] {
+  --background: 0.97 0.01 30;
+  --foreground: 0.18 0.05 25;
+
+  --card: 0.99 0.006 28;
+  --card-foreground: 0.18 0.05 25;
+
+  --popover: 0.99 0.006 28;
+  --popover-foreground: 0.18 0.05 25;
+
+  --primary: 0.5 0.18 28;
+  --primary-foreground: 0.99 0.005 30;
+
+  --secondary: 0.92 0.04 35;
+  --secondary-foreground: 0.28 0.06 25;
+
+  --muted: 0.91 0.03 30;
+  --muted-foreground: 0.55 0.06 28;
+
+  --accent: 0.84 0.1 35;
+  --accent-foreground: 0.22 0.06 22;
+
+  --destructive: 0.55 0.22 15;
+  --destructive-foreground: 0.985 0 0;
+
+  --border: 0.86 0.05 30;
+  --input: 0.86 0.05 30;
+  --ring: 0.6 0.14 28;
+
+  --theme-glow: 0.65 0.2 28;
+  --theme-hero-from: 0.96 0.02 32;
+  --theme-hero-to: 0.89 0.07 28;
+
+  --sidebar: 0.95 0.018 30;
+  --sidebar-foreground: 0.18 0.05 25;
+  --sidebar-primary: 0.5 0.18 28;
+  --sidebar-primary-foreground: 0.99 0.005 30;
+  --sidebar-accent: 0.9 0.04 32;
+  --sidebar-accent-foreground: 0.28 0.06 25;
+  --sidebar-border: 0.86 0.05 30;
+  --sidebar-ring: 0.6 0.14 28;
+}
+
+/* ============================================================
+   CISZA — muted grays, lavender, contemplative silence
+   ============================================================ */
+
+[data-theme="cisza"] {
+  --background: 0.97 0.006 280;
+  --foreground: 0.2 0.015 290;
+
+  --card: 0.99 0.004 280;
+  --card-foreground: 0.2 0.015 290;
+
+  --popover: 0.99 0.004 280;
+  --popover-foreground: 0.2 0.015 290;
+
+  --primary: 0.45 0.07 285;
+  --primary-foreground: 0.99 0.003 280;
+
+  --secondary: 0.92 0.016 278;
+  --secondary-foreground: 0.3 0.025 285;
+
+  --muted: 0.91 0.012 280;
+  --muted-foreground: 0.55 0.02 285;
+
+  --accent: 0.86 0.03 278;
+  --accent-foreground: 0.25 0.02 285;
+
+  --destructive: 0.577 0.245 27.325;
+  --destructive-foreground: 0.985 0 0;
+
+  --border: 0.87 0.018 278;
+  --input: 0.87 0.018 278;
+  --ring: 0.58 0.06 280;
+
+  --theme-glow: 0.65 0.1 285;
+  --theme-hero-from: 0.965 0.01 278;
+  --theme-hero-to: 0.91 0.025 282;
+
+  --sidebar: 0.96 0.01 280;
+  --sidebar-foreground: 0.2 0.015 290;
+  --sidebar-primary: 0.45 0.07 285;
+  --sidebar-primary-foreground: 0.99 0.003 280;
+  --sidebar-accent: 0.91 0.016 278;
+  --sidebar-accent-foreground: 0.3 0.025 285;
+  --sidebar-border: 0.87 0.018 278;
+  --sidebar-ring: 0.58 0.06 280;
+}
+
+/* ============================================================
+   NOC — deep navy/charcoal, night sky
+   ============================================================ */
+
+[data-theme="noc"] {
+  --background: 0.13 0.03 250;
+  --foreground: 0.93 0.012 235;
+
+  --card: 0.17 0.028 248;
+  --card-foreground: 0.93 0.012 235;
+
+  --popover: 0.2 0.025 248;
+  --popover-foreground: 0.93 0.012 235;
+
+  --primary: 0.68 0.1 235;
+  --primary-foreground: 0.12 0.03 248;
+
+  --secondary: 0.22 0.04 250;
+  --secondary-foreground: 0.85 0.015 240;
+
+  --muted: 0.22 0.035 250;
+  --muted-foreground: 0.62 0.04 242;
+
+  --accent: 0.28 0.05 248;
+  --accent-foreground: 0.88 0.018 238;
+
+  --destructive: 0.65 0.22 20;
+  --destructive-foreground: 0.12 0.025 28;
+
+  --border: 0.28 0.04 248;
+  --input: 0.25 0.04 248;
+  --ring: 0.55 0.08 240;
+
+  --theme-glow: 0.6 0.14 235;
+  --theme-hero-from: 0.14 0.035 252;
+  --theme-hero-to: 0.1 0.04 258;
+
+  --sidebar: 0.16 0.03 250;
+  --sidebar-foreground: 0.93 0.012 235;
+  --sidebar-primary: 0.68 0.1 235;
+  --sidebar-primary-foreground: 0.12 0.03 248;
+  --sidebar-accent: 0.22 0.04 248;
+  --sidebar-accent-foreground: 0.85 0.015 240;
+  --sidebar-border: 0.28 0.04 248;
+  --sidebar-ring: 0.55 0.08 240;
+}
+
+/* ============================================================
+   GLOBAL BASE STYLES
+   ============================================================ */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "General Sans", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Fraunces", "Georgia", serif;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  blockquote,
+  .editorial {
+    font-family: "Instrument Serif", "Georgia", serif;
+  }
+}
+
+/* ============================================================
+   NAVIGATION WAVE LIGHT HOVER
+   ============================================================ */
+
+.nav-link {
+  position: relative;
+  display: inline-block;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 100%;
+  height: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(var(--theme-glow)),
+    transparent
+  );
+  transform-origin: center;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 2px;
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+  transform: translateX(-50%) scaleX(1);
+}
+
+.nav-link.active {
+  background: linear-gradient(
+    135deg,
+    oklch(var(--accent) / 0.6),
+    oklch(var(--secondary) / 0.8)
+  );
+  border-radius: 4px;
+  padding: 4px 10px;
+}
+
+/* ============================================================
+   HERO GRADIENT
+   ============================================================ */
+
+.hero-gradient {
+  background: linear-gradient(
+    160deg,
+    oklch(var(--theme-hero-from)) 0%,
+    oklch(var(--theme-hero-to)) 60%,
+    oklch(var(--accent)) 100%
+  );
+}
+
+/* ============================================================
+   LOCK BUTTON (bottom right)
+   ============================================================ */
+
+.lock-btn {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 100;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(var(--card));
+  border: 1px solid oklch(var(--border));
+  color: oklch(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 12px oklch(var(--foreground) / 0.06);
+}
+
+.lock-btn:hover {
+  color: oklch(var(--primary));
+  border-color: oklch(var(--primary) / 0.4);
+  box-shadow: 0 4px 20px oklch(var(--theme-glow) / 0.25);
+  transform: scale(1.05);
+}
+
+/* ============================================================
+   SECTION TRANSITIONS
+   ============================================================ */
+
+.section-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.section-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================================
+   IMAGE PLACEHOLDER
+   ============================================================ */
+
+.img-placeholder {
+  background: linear-gradient(
+    135deg,
+    oklch(var(--muted)) 0%,
+    oklch(var(--accent) / 0.5) 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: oklch(var(--muted-foreground));
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: oklch(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(var(--border));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(var(--muted-foreground));
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+
+.text-display {
+  font-family: "Fraunces", "Georgia", serif;
+}
+
+.text-editorial {
+  font-family: "Instrument Serif", "Georgia", serif;
+}
+
+.glass {
+  background: oklch(var(--card) / 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.liturgical-red {
+  --lit-color: oklch(0.55 0.18 25);
+}
+.liturgical-green {
+  --lit-color: oklch(0.5 0.12 145);
+}
+.liturgical-violet {
+  --lit-color: oklch(0.45 0.1 295);
+}
+.liturgical-white {
+  --lit-color: oklch(0.98 0.01 90);
+}
+.liturgical-gold {
+  --lit-color: oklch(0.75 0.14 80);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .nav-link::after {
+    transition: none;
+  }
+}
