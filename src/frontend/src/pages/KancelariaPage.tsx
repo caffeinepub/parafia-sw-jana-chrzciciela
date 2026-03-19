@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import React, { useState } from "react";
+import { KancelariaSkeleton } from "../components/parish/PageSkeleton";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
@@ -193,8 +194,20 @@ export const DEFAULT_MATTERS: Matter[] = [
 // HOOKS
 // ============================================================
 
+const LS_KEY_KANCELARIA_META = "parish_kancelaria_meta_cache";
+
 export function useKancelariaMeta() {
   const { actor, isFetching } = useActor();
+
+  const getLocalData = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEY_KANCELARIA_META);
+      return raw ? (JSON.parse(raw) as KancelariaMeta) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   return useQuery<KancelariaMeta>({
     queryKey: [KANCELARIA_META_KEY],
     queryFn: async () => {
@@ -204,17 +217,35 @@ export function useKancelariaMeta() {
         const raw =
           typeof block === "string" ? block : ((block as any)?.content ?? "");
         if (!raw) return DEFAULT_KANCELARIA_META;
-        return { ...DEFAULT_KANCELARIA_META, ...JSON.parse(raw) };
+        const result = { ...DEFAULT_KANCELARIA_META, ...JSON.parse(raw) };
+        try {
+          localStorage.setItem(LS_KEY_KANCELARIA_META, JSON.stringify(result));
+        } catch {}
+        return result;
       } catch {
         return DEFAULT_KANCELARIA_META;
       }
     },
     enabled: !!actor && !isFetching,
+    staleTime: 60_000,
+    placeholderData: getLocalData,
   });
 }
 
+const LS_KEY_KANCELARIA_HOURS = "parish_kancelaria_hours_cache";
+
 export function useKancelariaHours() {
   const { actor, isFetching } = useActor();
+
+  const getLocalData = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEY_KANCELARIA_HOURS);
+      return raw ? (JSON.parse(raw) as OfficeHour[]) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   return useQuery<OfficeHour[]>({
     queryKey: [KANCELARIA_HOURS_KEY],
     queryFn: async () => {
@@ -226,17 +257,35 @@ export function useKancelariaHours() {
         const raw =
           typeof block === "string" ? block : ((block as any)?.content ?? "");
         if (!raw) return DEFAULT_HOURS;
-        return JSON.parse(raw);
+        const result = JSON.parse(raw);
+        try {
+          localStorage.setItem(LS_KEY_KANCELARIA_HOURS, JSON.stringify(result));
+        } catch {}
+        return result;
       } catch {
         return DEFAULT_HOURS;
       }
     },
     enabled: !!actor && !isFetching,
+    staleTime: 60_000,
+    placeholderData: getLocalData,
   });
 }
 
+const LS_KEY_KANCELARIA_MATTERS = "parish_kancelaria_matters_cache";
+
 export function useKancelariaMatters() {
   const { actor, isFetching } = useActor();
+
+  const getLocalData = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEY_KANCELARIA_MATTERS);
+      return raw ? (JSON.parse(raw) as Matter[]) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   return useQuery<Matter[]>({
     queryKey: [KANCELARIA_MATTERS_KEY],
     queryFn: async () => {
@@ -249,12 +298,21 @@ export function useKancelariaMatters() {
           typeof block === "string" ? block : ((block as any)?.content ?? "");
         if (!raw) return DEFAULT_MATTERS;
         const parsed = JSON.parse(raw) as Matter[];
-        return parsed.sort((a, b) => a.order - b.order);
+        const result = parsed.sort((a, b) => a.order - b.order);
+        try {
+          localStorage.setItem(
+            LS_KEY_KANCELARIA_MATTERS,
+            JSON.stringify(result),
+          );
+        } catch {}
+        return result;
       } catch {
         return DEFAULT_MATTERS;
       }
     },
     enabled: !!actor && !isFetching,
+    staleTime: 60_000,
+    placeholderData: getLocalData,
   });
 }
 
@@ -374,6 +432,8 @@ export function KancelariaPage() {
   const { data: matters, isLoading: mattersLoading } = useKancelariaMatters();
   const { data: siteSettings } = useSiteSettings();
 
+  const isLoading = metaLoading && !meta && hoursLoading && !hours;
+
   const [selectedMatter, setSelectedMatter] = useState<Matter | null>(null);
   const [bankCopied, setBankCopied] = useState(false);
 
@@ -411,6 +471,9 @@ export function KancelariaPage() {
   const m = meta ?? DEFAULT_KANCELARIA_META;
   const visibleHours = (hours ?? DEFAULT_HOURS).filter((h) => h.visible);
 
+  if (isLoading) {
+    return <KancelariaSkeleton />;
+  }
   return (
     <main className="min-h-screen bg-background pt-nav">
       {/* ── HERO ─────────────────────────────────────────── */}

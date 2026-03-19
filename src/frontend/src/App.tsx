@@ -4,6 +4,7 @@ import { Footer } from "./components/parish/Footer";
 import { LockButton } from "./components/parish/LockButton";
 import { Navigation } from "./components/parish/Navigation";
 import { ThemeProvider } from "./context/ThemeContext";
+import { useAppPreload } from "./hooks/useAppPreload";
 import { AdminPage } from "./pages/AdminPage";
 import { AktualnosociDetailPage } from "./pages/AktualnosociDetailPage";
 import { AktualnosociPage } from "./pages/AktualnosociPage";
@@ -18,6 +19,7 @@ import { ZyciePage } from "./pages/ZyciePage";
 import { Route, RouterProvider, Routes } from "./router";
 
 function AppLayout() {
+  useAppPreload();
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-500">
       <Navigation />

@@ -7,61 +7,27 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   GripVertical,
   Image as ImageIcon,
+  Loader2,
   Plus,
   Save,
   Trash2,
   Upload,
 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useZycieData } from "../hooks/useZycieData";
+import { useZycieImageUpload } from "../hooks/useZycieImageUpload";
 import type { ZycieData, ZycieTile } from "./ZyciePage";
-
-const DEFAULT_YEARS = ["2024", "2025", "2026"];
-
-const DEFAULT_DATA: ZycieData = {
-  heroTexts: {
-    title: "Życie",
-    subtitle: "Życie naszej wspólnoty w świetle wiary",
-    description:
-      "Każdy rok przynosi nowe wydarzenia, nowe historie i nowe świadectwa życia naszej parafii.",
-  },
-  years: {
-    "2024": { heroImage: "", heroDescription: "", tiles: [] },
-    "2025": { heroImage: "", heroDescription: "", tiles: [] },
-    "2026": { heroImage: "", heroDescription: "", tiles: [] },
-  },
-};
-
-function loadData(): ZycieData {
-  try {
-    const raw = localStorage.getItem("zycie_data");
-    if (!raw) return DEFAULT_DATA;
-    const parsed = JSON.parse(raw) as ZycieData;
-    for (const y of DEFAULT_YEARS) {
-      if (!parsed.years[y]) {
-        parsed.years[y] = { heroImage: "", heroDescription: "", tiles: [] };
-      }
-    }
-    return parsed;
-  } catch {
-    return DEFAULT_DATA;
-  }
-}
-
-function saveData(data: ZycieData) {
-  localStorage.setItem("zycie_data", JSON.stringify(data));
-  window.dispatchEvent(new Event("storage"));
-}
 
 function generateId() {
   return `tile_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
 // ============================================================
-// IMAGE UPLOAD COMPONENTS
+// IMAGE FIELD COMPONENT (blob-storage upload, returns URL)
 // ============================================================
 
-function ZycieImageUpload({
+function ImageField({
   value,
   onChange,
   label,
@@ -73,17 +39,23 @@ function ZycieImageUpload({
   aspectRatio?: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
+  const { upload } = useZycieImageUpload();
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgressVal] = useState(0);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     setUploading(true);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      onChange(dataUrl);
+    setProgressVal(0);
+    try {
+      const url = await upload(file);
+      onChange(url);
+    } catch (e) {
+      console.error("Image upload failed:", e);
+      toast.error("Nie udało się wgrać zdjęcia");
+    } finally {
       setUploading(false);
-    };
-    reader.readAsDataURL(file);
+      setProgressVal(0);
+    }
   };
 
   return (
@@ -111,9 +83,10 @@ function ZycieImageUpload({
           </div>
         )}
         {uploading && (
-          <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-            <span className="text-sm font-sans text-muted-foreground">
-              Wczytywanie…
+          <div className="absolute inset-0 bg-background/70 flex flex-col items-center justify-center gap-2">
+            <Loader2 className="w-6 h-6 text-primary animate-spin" />
+            <span className="text-xs font-sans text-muted-foreground">
+              {progress > 0 ? `${progress}%` : "Wgrywanie…"}
             </span>
           </div>
         )}
@@ -138,7 +111,7 @@ function ZycieImageUpload({
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleFile(file);
+          if (file) void handleFile(file);
           e.target.value = "";
         }}
       />
@@ -150,12 +123,26 @@ function ZycieImageUpload({
 // HERO TEXTS TAB
 // ============================================================
 
-function HeroTextsSubTab() {
-  const [data, setData] = useState(loadData);
+function HeroTextsSubTab({
+  data,
+  saveData,
+}: {
+  data: ZycieData;
+  saveData: (data: ZycieData) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(data.heroTexts);
+  const [saving, setSaving] = useState(false);
 
-  const save = () => {
-    saveData(data);
-    toast.success("Zapisano teksty hero");
+  const save = async () => {
+    setSaving(true);
+    try {
+      await saveData({ ...data, heroTexts: draft });
+      toast.success("Zapisano teksty hero");
+    } catch {
+      toast.error("Błąd zapisu");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -174,13 +161,8 @@ function HeroTextsSubTab() {
           <Label htmlFor="zycie-title">Tytuł</Label>
           <Input
             id="zycie-title"
-            value={data.heroTexts.title}
-            onChange={(e) =>
-              setData((prev) => ({
-                ...prev,
-                heroTexts: { ...prev.heroTexts, title: e.target.value },
-              }))
-            }
+            value={draft.title}
+            onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))}
             data-ocid="zycie.hero.title.input"
           />
         </div>
@@ -188,12 +170,9 @@ function HeroTextsSubTab() {
           <Label htmlFor="zycie-subtitle">Podtytuł</Label>
           <Input
             id="zycie-subtitle"
-            value={data.heroTexts.subtitle}
+            value={draft.subtitle}
             onChange={(e) =>
-              setData((prev) => ({
-                ...prev,
-                heroTexts: { ...prev.heroTexts, subtitle: e.target.value },
-              }))
+              setDraft((p) => ({ ...p, subtitle: e.target.value }))
             }
             data-ocid="zycie.hero.subtitle.input"
           />
@@ -203,18 +182,23 @@ function HeroTextsSubTab() {
           <Textarea
             id="zycie-desc"
             rows={3}
-            value={data.heroTexts.description}
+            value={draft.description}
             onChange={(e) =>
-              setData((prev) => ({
-                ...prev,
-                heroTexts: { ...prev.heroTexts, description: e.target.value },
-              }))
+              setDraft((p) => ({ ...p, description: e.target.value }))
             }
             data-ocid="zycie.hero.description.textarea"
           />
         </div>
-        <Button onClick={save} data-ocid="zycie.hero.save_button">
-          <Save className="w-4 h-4 mr-2" />
+        <Button
+          onClick={save}
+          disabled={saving}
+          data-ocid="zycie.hero.save_button"
+        >
+          {saving ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
           Zapisz
         </Button>
       </div>
@@ -274,7 +258,7 @@ function TileEditor({
           />
         </div>
         <div className="space-y-2 md:col-span-2">
-          <ZycieImageUpload
+          <ImageField
             value={tile.image}
             onChange={(url) => update({ image: url })}
             label="Zdjęcie kafelka (16:9)"
@@ -318,16 +302,28 @@ function TileEditor({
 // YEARS & TILES TAB
 // ============================================================
 
-function YearsTilesSubTab() {
-  const [data, setData] = useState(loadData);
+function YearsTilesSubTab({
+  data,
+  saveData,
+}: {
+  data: ZycieData;
+  saveData: (data: ZycieData) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<ZycieData>(data);
   const [selectedYear, setSelectedYear] = useState("2026");
   const [newYear, setNewYear] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const availableYears = Object.keys(data.years).sort(
+  // Sync draft when data prop changes (e.g. after backend fetch)
+  React.useEffect(() => {
+    setDraft(data);
+  }, [data]);
+
+  const availableYears = Object.keys(draft.years).sort(
     (a, b) => Number(b) - Number(a),
   );
 
-  const yearData = data.years[selectedYear] ?? {
+  const yearData = draft.years[selectedYear] ?? {
     heroImage: "",
     heroDescription: "",
     tiles: [],
@@ -335,7 +331,7 @@ function YearsTilesSubTab() {
 
   const updateYearField = useCallback(
     (fields: Partial<{ heroImage: string; heroDescription: string }>) => {
-      setData((prev) => ({
+      setDraft((prev) => ({
         ...prev,
         years: {
           ...prev.years,
@@ -348,7 +344,7 @@ function YearsTilesSubTab() {
 
   const updateTiles = useCallback(
     (tiles: ZycieTile[]) => {
-      setData((prev) => ({
+      setDraft((prev) => ({
         ...prev,
         years: {
           ...prev.years,
@@ -382,11 +378,11 @@ function YearsTilesSubTab() {
 
   const addYear = () => {
     const y = newYear.trim();
-    if (!y || data.years[y]) {
+    if (!y || draft.years[y]) {
       toast.error("Rok już istnieje lub jest pusty");
       return;
     }
-    setData((prev) => ({
+    setDraft((prev) => ({
       ...prev,
       years: {
         ...prev.years,
@@ -398,22 +394,29 @@ function YearsTilesSubTab() {
   };
 
   const deleteYear = (y: string) => {
-    if (Object.keys(data.years).length <= 1) {
-      toast.error("Musi zostać przynajmniej jeden rok");
+    if (Object.keys(draft.years).length <= 1) {
+      toast.error("Musi pozostać przynajmniej jeden rok");
       return;
     }
-    setData((prev) => {
+    setDraft((prev) => {
       const updated = { ...prev.years };
       delete updated[y];
       return { ...prev, years: updated };
     });
-    const remaining = Object.keys(data.years).filter((k) => k !== y);
+    const remaining = Object.keys(draft.years).filter((k) => k !== y);
     setSelectedYear(remaining[0] ?? "2026");
   };
 
-  const save = () => {
-    saveData(data);
-    toast.success(`Zapisano rok ${selectedYear}`);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await saveData(draft);
+      toast.success(`Zapisano rok ${selectedYear}`);
+    } catch {
+      toast.error("Błąd zapisu");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -478,7 +481,7 @@ function YearsTilesSubTab() {
           Centralny obraz roku {selectedYear}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-          <ZycieImageUpload
+          <ImageField
             value={yearData.heroImage}
             onChange={(url) => updateYearField({ heroImage: url })}
             label={`Centralny obraz roku ${selectedYear}`}
@@ -541,8 +544,12 @@ function YearsTilesSubTab() {
         )}
       </div>
 
-      <Button onClick={save} data-ocid="zycie.save_button">
-        <Save className="w-4 h-4 mr-2" />
+      <Button onClick={save} disabled={saving} data-ocid="zycie.save_button">
+        {saving ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        ) : (
+          <Save className="w-4 h-4 mr-2" />
+        )}
         Zapisz rok {selectedYear}
       </Button>
     </div>
@@ -554,6 +561,8 @@ function YearsTilesSubTab() {
 // ============================================================
 
 export function AdminZycieTab() {
+  const { data, saveData } = useZycieData();
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -583,10 +592,10 @@ export function AdminZycieTab() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="hero">
-          <HeroTextsSubTab />
+          <HeroTextsSubTab data={data} saveData={saveData} />
         </TabsContent>
         <TabsContent value="lata">
-          <YearsTilesSubTab />
+          <YearsTilesSubTab data={data} saveData={saveData} />
         </TabsContent>
       </Tabs>
     </div>

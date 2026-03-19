@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useState } from "react";
+import { KontaktSkeleton } from "../components/parish/PageSkeleton";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useSiteSettings } from "../hooks/useQueries";
 
@@ -40,7 +41,7 @@ const DEFAULT_CONTACT: ContactData = {
 };
 
 export function KontaktPage() {
-  const { data: settings } = useSiteSettings();
+  const { data: settings, isLoading } = useSiteSettings();
   const [copied, setCopied] = useState(false);
 
   const contact: ContactData = React.useMemo(() => {
@@ -53,6 +54,10 @@ export function KontaktPage() {
     }
     return DEFAULT_CONTACT;
   }, [settings]);
+
+  if (isLoading && !settings) {
+    return <KontaktSkeleton />;
+  }
 
   const handleCopy = async () => {
     try {

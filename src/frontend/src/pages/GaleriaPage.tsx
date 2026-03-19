@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import type { GalleryAlbum } from "../backend.d";
 import { ImageWithFallback } from "../components/parish/ImagePlaceholder";
+import { GaleriaSkeleton } from "../components/parish/PageSkeleton";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useGalleryAlbums } from "../hooks/useQueries";
 
@@ -170,6 +171,10 @@ function AlbumGrid({
 export function GaleriaPage() {
   const { data: albums, isLoading } = useGalleryAlbums();
   const [selectedAlbum, setSelectedAlbum] = useState<GalleryAlbum | null>(null);
+
+  if (isLoading && !albums) {
+    return <GaleriaSkeleton />;
+  }
 
   if (selectedAlbum) {
     return (

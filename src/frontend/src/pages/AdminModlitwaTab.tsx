@@ -21,9 +21,13 @@ import { useActor } from "../hooks/useActor";
 import { getWeekDates, getWeekId } from "../hooks/useLiturgy";
 import type { MassIntention, ModlitwaConfig, PrayerStar } from "./ModlitwaPage";
 import {
+  intentionFromBackend,
+  intentionToBackend,
   loadConfig,
   loadMassIntentions,
   loadPrayers,
+  prayerFromBackend,
+  prayerToBackend,
   saveConfig,
   saveMassIntentions,
   savePrayers,
@@ -106,41 +110,96 @@ function saveLiturgyWeekToLS(week: LiturgyWeek): void {
 // ============================================================
 
 function PrayersTab() {
+  const { actor } = useActor();
   const [prayers, setPrayers] = useState<PrayerStar[]>(loadPrayers);
+
+  // Load from backend on mount
+  useEffect(() => {
+    if (!actor) return;
+    void actor
+      .getPrayerStars()
+      .then((backendPrayers) => {
+        if (backendPrayers.length > 0 || loadPrayers().length === 0) {
+          const converted = backendPrayers.map(prayerFromBackend);
+          savePrayers(converted);
+          setPrayers(converted);
+        }
+      })
+      .catch(() => {
+        /* use localStorage */
+      });
+  }, [actor]);
 
   const pending = prayers.filter((p) => !p.isApproved && !p.isHidden);
   const approved = prayers.filter((p) => p.isApproved && !p.isHidden);
   const hidden = prayers.filter((p) => p.isHidden);
 
-  const approve = useCallback((id: string) => {
-    setPrayers((prev) => {
-      const updated = prev.map((p) =>
-        p.id === id ? { ...p, isApproved: true } : p,
-      );
-      savePrayers(updated);
-      return updated;
-    });
-    toast.success("Modlitwa zatwierdzona.");
-  }, []);
+  const approve = useCallback(
+    (id: string) => {
+      setPrayers((prev) => {
+        const updated = prev.map((p) =>
+          p.id === id ? { ...p, isApproved: true } : p,
+        );
+        savePrayers(updated);
+        const approvedStar = updated.find((p) => p.id === id);
+        if (approvedStar) {
+          void (async () => {
+            try {
+              if (actor)
+                await actor.savePrayerStar(prayerToBackend(approvedStar));
+            } catch {
+              /* silent */
+            }
+          })();
+        }
+        return updated;
+      });
+      toast.success("Modlitwa zatwierdzona.");
+    },
+    [actor],
+  );
 
-  const remove = useCallback((id: string) => {
-    setPrayers((prev) => {
-      const updated = prev.filter((p) => p.id !== id);
-      savePrayers(updated);
-      return updated;
-    });
-    toast.success("Wpis usunięty.");
-  }, []);
+  const remove = useCallback(
+    (id: string) => {
+      setPrayers((prev) => {
+        const updated = prev.filter((p) => p.id !== id);
+        savePrayers(updated);
+        return updated;
+      });
+      void (async () => {
+        try {
+          if (actor) await actor.deletePrayerStar(id);
+        } catch {
+          /* silent */
+        }
+      })();
+      toast.success("Wpis usunięty.");
+    },
+    [actor],
+  );
 
-  const toggleHidden = useCallback((id: string) => {
-    setPrayers((prev) => {
-      const updated = prev.map((p) =>
-        p.id === id ? { ...p, isHidden: !p.isHidden } : p,
-      );
-      savePrayers(updated);
-      return updated;
-    });
-  }, []);
+  const toggleHidden = useCallback(
+    (id: string) => {
+      setPrayers((prev) => {
+        const updated = prev.map((p) =>
+          p.id === id ? { ...p, isHidden: !p.isHidden } : p,
+        );
+        savePrayers(updated);
+        const toggled = updated.find((p) => p.id === id);
+        if (toggled) {
+          void (async () => {
+            try {
+              if (actor) await actor.savePrayerStar(prayerToBackend(toggled));
+            } catch {
+              /* silent */
+            }
+          })();
+        }
+        return updated;
+      });
+    },
+    [actor],
+  );
 
   return (
     <div className="space-y-6">
@@ -381,6 +440,23 @@ function MassIntentionsTab() {
     setLiturgyWeeks(loadAllLiturgyWeeks());
   }, []);
 
+  // Load from backend on mount
+  useEffect(() => {
+    if (!actor) return;
+    void actor
+      .getMassIntentions()
+      .then((backendIntentions) => {
+        if (backendIntentions.length > 0 || loadMassIntentions().length === 0) {
+          const convertedInt = backendIntentions.map(intentionFromBackend);
+          saveMassIntentions(convertedInt);
+          setIntentions(convertedInt);
+        }
+      })
+      .catch(() => {
+        /* use localStorage */
+      });
+  }, [actor]);
+
   // Reset date/time fields when assignment panel opens for a different intention
   // biome-ignore lint/correctness/useExhaustiveDependencies: expandedId change triggers form reset
   useEffect(() => {
@@ -399,10 +475,21 @@ function MassIntentionsTab() {
           i.id === id ? { ...i, ...changes } : i,
         );
         saveMassIntentions(updated);
+        const updatedItem = updated.find((i) => i.id === id);
+        if (updatedItem) {
+          void (async () => {
+            try {
+              if (actor)
+                await actor.saveMassIntention(intentionToBackend(updatedItem));
+            } catch {
+              /* silent */
+            }
+          })();
+        }
         return updated;
       });
     },
-    [],
+    [actor],
   );
 
   const handleApprove = useCallback(
@@ -430,6 +517,13 @@ function MassIntentionsTab() {
         saveMassIntentions(updated);
         return updated;
       });
+      void (async () => {
+        try {
+          if (actor) await actor.deleteMassIntention(id);
+        } catch {
+          /* silent */
+        }
+      })();
       // Also remove from liturgy schedule if it was assigned there
       if (
         intentionToRemove?.assignedWeekId &&
@@ -816,6 +910,20 @@ function MassIntentionsTab() {
                   : i,
               );
               saveMassIntentions(updated);
+              // Sync archived items to backend
+              void (async () => {
+                try {
+                  if (actor) {
+                    for (const item of updated.filter(
+                      (i) => i.status === "archived",
+                    )) {
+                      await actor.saveMassIntention(intentionToBackend(item));
+                    }
+                  }
+                } catch {
+                  /* silent */
+                }
+              })();
               return updated;
             });
             toast.success("Zatwierdzone intencje zarchiwizowane.");
@@ -878,15 +986,39 @@ function MassIntentionsTab() {
 // ============================================================
 
 function ConfigTab() {
+  const { actor } = useActor();
   const [cfg, setCfg] = useState<ModlitwaConfig>(loadConfig);
   const [saved, setSaved] = useState(false);
+
+  // Load from backend on mount
+  useEffect(() => {
+    if (!actor) return;
+    void actor
+      .getModlitwaConfig()
+      .then((backendCfg) => {
+        if (backendCfg) {
+          saveConfig(backendCfg);
+          setCfg(backendCfg);
+        }
+      })
+      .catch(() => {
+        /* use localStorage */
+      });
+  }, [actor]);
 
   const handleSave = useCallback(() => {
     saveConfig(cfg);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     toast.success("Konfiguracja zapisana.");
-  }, [cfg]);
+    void (async () => {
+      try {
+        if (actor) await actor.saveModlitwaConfig(cfg);
+      } catch {
+        /* silent */
+      }
+    })();
+  }, [cfg, actor]);
 
   return (
     <div className="space-y-6 max-w-lg">

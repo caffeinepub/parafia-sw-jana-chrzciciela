@@ -31,6 +31,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { LiturgiaSkeleton } from "../components/parish/PageSkeleton";
 
 import type { LiturgyDay, LiturgyEntry, LiturgyWeek } from "../backend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
@@ -1286,6 +1287,10 @@ export function LiturgiaPage() {
         (a, b) => Number(a.dayIndex) - Number(b.dayIndex),
       )
     : [];
+
+  if (isLoading && !week) {
+    return <LiturgiaSkeleton />;
+  }
 
   return (
     <main className="min-h-screen bg-background pt-nav">

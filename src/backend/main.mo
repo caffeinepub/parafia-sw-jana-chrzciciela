@@ -12,6 +12,9 @@ import MixinStorage "blob-storage/Mixin";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 
+
+// Enable data migration
+
 actor {
   public type GalleryPhoto = {
     id : Text;
@@ -588,5 +591,112 @@ actor {
 
   public query func listLiturgyWeeks() : async [LiturgyWeek] {
     liturgyWeeks.values().toArray().sort();
+  };
+
+  // MODLITWA SECTION
+
+  public type PrayerStar = {
+    id : Text;
+    name : ?Text;
+    city : ?Text;
+    intention : ?Text;
+    isPublic : Bool;
+    isApproved : Bool;
+    joinedAt : Text;
+    color : Text;
+    prayCount : Nat;
+    isHidden : Bool;
+  };
+
+  public type MassIntention = {
+    id : Text;
+    name : Text;
+    phone : ?Text;
+    email : ?Text;
+    intention : Text;
+    status : Text; // "pending", "approved", "rejected", "archived"
+    offeringStatus : Text; // "none", "paid", "pending"
+    assignedWeekId : ?Text;
+    assignedDayIndex : ?Int;
+    assignedEntryId : ?Text;
+    assignedMassTime : ?Text;
+    assignedMassDate : ?Text;
+    createdAt : Text;
+    color : Text;
+  };
+
+  public type ModlitwaConfig = {
+    heroTitle : Text;
+    heroSubtitle : Text;
+    heroDescription : Text;
+    accountNumber : Text;
+    bankOwner : Text;
+    thankYouTitle : Text;
+    thankYouText : Text;
+  };
+
+  var prayerStars : List.List<PrayerStar> = List.empty<PrayerStar>();
+  var massIntentions : List.List<MassIntention> = List.empty<MassIntention>();
+  var modlitwaConfig : ?ModlitwaConfig = null;
+
+  // Prayer Stars
+  public shared ({ caller }) func savePrayerStar(star : PrayerStar) : async () {
+    // Public can submit prayer stars (form submission)
+    // No authorization check needed - this is a public form
+    prayerStars.add(star);
+  };
+
+  public query func getPrayerStars() : async [PrayerStar] {
+    // Public can view prayer stars
+    prayerStars.toArray();
+  };
+
+  public shared ({ caller }) func deletePrayerStar(id : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can delete prayer stars");
+    };
+    let filteredArray = prayerStars.toArray().filter(
+      func(star) { star.id != id }
+    );
+    prayerStars := List.fromArray(filteredArray);
+  };
+
+  // Mass Intentions
+  public shared ({ caller }) func saveMassIntention(intention : MassIntention) : async () {
+    // Public can submit mass intentions (form submission)
+    // No authorization check needed - this is a public form
+    massIntentions.add(intention);
+  };
+
+  public query ({ caller }) func getMassIntentions() : async [MassIntention] {
+    // Mass intentions contain sensitive personal data (phone, email)
+    // Only authenticated users (admins/staff) should view them
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Only authenticated users can view mass intentions");
+    };
+    massIntentions.toArray();
+  };
+
+  public shared ({ caller }) func deleteMassIntention(id : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can delete mass intentions");
+    };
+    let filteredArray = massIntentions.toArray().filter(
+      func(intention) { intention.id != id }
+    );
+    massIntentions := List.fromArray(filteredArray);
+  };
+
+  // Modlitwa Config
+  public shared ({ caller }) func saveModlitwaConfig(config : ModlitwaConfig) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update prayer section configuration");
+    };
+    modlitwaConfig := ?config;
+  };
+
+  public query func getModlitwaConfig() : async ?ModlitwaConfig {
+    // Public can view the configuration
+    modlitwaConfig;
   };
 };

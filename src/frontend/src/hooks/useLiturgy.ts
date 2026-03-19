@@ -177,7 +177,7 @@ function deserializeWeek(raw: SerializableWeek): LiturgyWeek {
   };
 }
 
-function lsLoadAll(): Record<string, SerializableWeek> {
+export function lsLoadAll(): Record<string, SerializableWeek> {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return {};
@@ -198,7 +198,7 @@ function lsGetWeek(weekId: string): LiturgyWeek | null {
   }
 }
 
-function lsSaveWeek(week: LiturgyWeek): void {
+export function lsSaveWeek(week: LiturgyWeek): void {
   try {
     const all = lsLoadAll();
     all[week.id] = serializeWeek(week);

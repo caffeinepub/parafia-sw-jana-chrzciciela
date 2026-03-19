@@ -18,6 +18,7 @@ import React, {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { ModlitwaSkeleton } from "../components/parish/PageSkeleton";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { getWeekId } from "../hooks/useLiturgy";
@@ -171,6 +172,87 @@ export function loadMassIntentions(): MassIntention[] {
 
 export function saveMassIntentions(intentions: MassIntention[]) {
   localStorage.setItem("modlitwa_mass_intentions", JSON.stringify(intentions));
+}
+
+// ============================================================
+// BACKEND TYPE CONVERSION
+// ============================================================
+
+import type { backendInterface } from "../backend";
+type BackendPrayerStar = Parameters<backendInterface["savePrayerStar"]>[0];
+type BackendMassIntention = Parameters<
+  backendInterface["saveMassIntention"]
+>[0];
+
+export function prayerFromBackend(b: BackendPrayerStar): PrayerStar {
+  return {
+    id: b.id,
+    name: b.name,
+    city: b.city,
+    intention: b.intention,
+    isPublic: b.isPublic,
+    isApproved: b.isApproved,
+    joinedAt: b.joinedAt,
+    color: b.color,
+    prayCount: Number(b.prayCount),
+    isHidden: b.isHidden,
+  };
+}
+
+export function prayerToBackend(p: PrayerStar): BackendPrayerStar {
+  return {
+    id: p.id,
+    name: p.name,
+    city: p.city,
+    intention: p.intention,
+    isPublic: p.isPublic,
+    isApproved: p.isApproved,
+    joinedAt: p.joinedAt,
+    color: p.color,
+    prayCount: BigInt(p.prayCount),
+    isHidden: p.isHidden ?? false,
+  };
+}
+
+export function intentionFromBackend(b: BackendMassIntention): MassIntention {
+  return {
+    id: b.id,
+    name: b.name,
+    phone: b.phone,
+    email: b.email,
+    intention: b.intention,
+    status: (b.status as MassIntention["status"]) || "pending",
+    offeringStatus:
+      (b.offeringStatus as MassIntention["offeringStatus"]) || "none",
+    assignedWeekId: b.assignedWeekId,
+    assignedDayIndex:
+      b.assignedDayIndex !== undefined ? Number(b.assignedDayIndex) : undefined,
+    assignedEntryId: b.assignedEntryId,
+    assignedMassTime: b.assignedMassTime,
+    assignedMassDate: b.assignedMassDate,
+    createdAt: b.createdAt,
+    color: b.color,
+  };
+}
+
+export function intentionToBackend(i: MassIntention): BackendMassIntention {
+  return {
+    id: i.id,
+    name: i.name,
+    phone: i.phone,
+    email: i.email,
+    intention: i.intention,
+    status: i.status,
+    offeringStatus: i.offeringStatus,
+    assignedWeekId: i.assignedWeekId,
+    assignedDayIndex:
+      i.assignedDayIndex !== undefined ? BigInt(i.assignedDayIndex) : undefined,
+    assignedEntryId: i.assignedEntryId,
+    assignedMassTime: i.assignedMassTime,
+    assignedMassDate: i.assignedMassDate,
+    createdAt: i.createdAt,
+    color: i.color,
+  };
 }
 
 // ============================================================
@@ -605,7 +687,8 @@ export function ModlitwaPage() {
   const [massIntentions, setMassIntentions] =
     useState<MassIntention[]>(loadMassIntentions);
 
-  const { actor } = useActor();
+  const { actor, isFetching } = useActor();
+
   const [liturgyIntentions, setLiturgyIntentions] = useState<MassIntention[]>(
     [],
   );
@@ -615,6 +698,8 @@ export function ModlitwaPage() {
   );
 
   const [liturgyRefreshToken, setLiturgyRefreshToken] = useState(0);
+  const showSkeleton =
+    isFetching && prayers.length === 0 && massIntentions.length === 0;
 
   // Listen for liturgy changes from other tabs/admin panel
   useEffect(() => {
@@ -626,6 +711,70 @@ export function ModlitwaPage() {
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
+
+  // Load prayers, intentions, config from backend (localStorage is immediate cache)
+  useEffect(() => {
+    if (!actor) return;
+    void (async () => {
+      try {
+        const [backendPrayers, backendIntentions, backendConfig] =
+          await Promise.all([
+            actor.getPrayerStars(),
+            actor.getMassIntentions(),
+            actor.getModlitwaConfig(),
+          ]);
+
+        // Prayers migration: if backend empty but localStorage has data, migrate
+        const lsPrayers = loadPrayers();
+        if (backendPrayers.length === 0 && lsPrayers.length > 0) {
+          for (const star of lsPrayers) {
+            try {
+              await actor.savePrayerStar(prayerToBackend(star));
+            } catch {
+              /* silent */
+            }
+          }
+          setPrayers(lsPrayers);
+        } else {
+          const convertedPrayers = backendPrayers.map(prayerFromBackend);
+          savePrayers(convertedPrayers);
+          setPrayers(convertedPrayers);
+        }
+
+        // Intentions migration: if backend empty but localStorage has data, migrate
+        const lsIntentions = loadMassIntentions();
+        if (backendIntentions.length === 0 && lsIntentions.length > 0) {
+          for (const intention of lsIntentions) {
+            try {
+              await actor.saveMassIntention(intentionToBackend(intention));
+            } catch {
+              /* silent */
+            }
+          }
+          setMassIntentions(lsIntentions);
+        } else {
+          // Expire old intentions (same logic as loadMassIntentions)
+          const now = Date.now();
+          const expiryMs = INTENTION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+          const convertedIntentions =
+            backendIntentions.map(intentionFromBackend);
+          const valid = convertedIntentions.filter(
+            (i) => now - new Date(i.createdAt).getTime() < expiryMs,
+          );
+          saveMassIntentions(valid);
+          setMassIntentions(valid);
+        }
+
+        // Config
+        if (backendConfig) {
+          saveConfig(backendConfig);
+          setConfig(backendConfig);
+        }
+      } catch {
+        // Backend unavailable -- localStorage data already loaded
+      }
+    })();
+  }, [actor]);
 
   // Load liturgy intentions AND services for current week
   useEffect(() => {
@@ -824,12 +973,20 @@ export function ModlitwaPage() {
       savePrayers(updated);
       setPrayers(updated);
       localStorage.setItem("modlitwa_last_prayer", new Date().toISOString());
+      // Async backend save
+      void (async () => {
+        try {
+          if (actor) await actor.savePrayerStar(prayerToBackend(newStar));
+        } catch {
+          /* silent */
+        }
+      })();
       setPrayerName("");
       setPrayerCity("");
       setPrayerIntention("");
       setPrayerSubmitted(true);
     },
-    [prayers, prayerName, prayerCity, prayerIntention],
+    [prayers, prayerName, prayerCity, prayerIntention, actor],
   );
 
   const handleSubmitIntention = useCallback(
@@ -859,13 +1016,22 @@ export function ModlitwaPage() {
       const updated = [...massIntentions, newIntention];
       saveMassIntentions(updated);
       setMassIntentions(updated);
+      // Async backend save
+      void (async () => {
+        try {
+          if (actor)
+            await actor.saveMassIntention(intentionToBackend(newIntention));
+        } catch {
+          /* silent */
+        }
+      })();
       setIntName("");
       setIntPhone("");
       setIntEmail("");
       setIntIntention("");
       setIntSubmitted(true);
     },
-    [massIntentions, intName, intPhone, intEmail, intIntention],
+    [massIntentions, intName, intPhone, intEmail, intIntention, actor],
   );
 
   const handlePrayTogether = useCallback(
@@ -929,6 +1095,10 @@ export function ModlitwaPage() {
     (i) => i.status === "approved",
   );
   const totalPrays = prayers.reduce((sum, p) => sum + p.prayCount, 0);
+
+  if (showSkeleton) {
+    return <ModlitwaSkeleton />;
+  }
 
   return (
     <main className="min-h-screen">

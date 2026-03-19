@@ -1,8 +1,6 @@
-import type { Principal } from "@icp-sdk/core/principal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
 import type {
-  AppUserRole,
   GalleryAlbum,
   GalleryPhoto,
   HomeSection,
@@ -127,6 +125,7 @@ export function usePublicNews() {
       return actor.getPublicNews();
     },
     enabled: !!actor && !isFetching,
+    staleTime: 300_000,
   });
 }
 
@@ -143,6 +142,7 @@ export function useAllNews() {
       }
     },
     enabled: !!actor && !isFetching,
+    staleTime: 30_000,
     retry: 0,
   });
 }
@@ -208,6 +208,7 @@ export function useGalleryAlbums() {
       return actor.getGalleryAlbums();
     },
     enabled: !!actor && !isFetching,
+    staleTime: 300_000,
   });
 }
 
@@ -300,6 +301,7 @@ export function useHomeSections() {
       return actor.getHomeSections();
     },
     enabled: !!actor && !isFetching,
+    staleTime: 300_000,
   });
 }
 
@@ -321,15 +323,35 @@ export function useUpdateHomeSections() {
 // SITE SETTINGS
 // ============================================================
 
+const LS_KEY_SITE_SETTINGS = "parish_site_settings_cache";
+
 export function useSiteSettings() {
   const { actor, isFetching } = useActor();
+
+  const getLocalData = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEY_SITE_SETTINGS);
+      return raw ? (JSON.parse(raw) as SiteSettings) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   return useQuery<SiteSettings | null>({
     queryKey: ["siteSettings"],
     queryFn: async () => {
       if (!actor) return null;
-      return actor.getSiteSettings();
+      const result = await actor.getSiteSettings();
+      if (result) {
+        try {
+          localStorage.setItem(LS_KEY_SITE_SETTINGS, JSON.stringify(result));
+        } catch {}
+      }
+      return result;
     },
     enabled: !!actor && !isFetching,
+    staleTime: 300_000,
+    placeholderData: getLocalData,
   });
 }
 
@@ -341,46 +363,11 @@ export function useUpdateSiteSettings() {
       const a = await waitForActor(actorRef, fetchingRef);
       await a.updateSiteSettings(settings);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["siteSettings"] });
-    },
-  });
-}
-
-// ============================================================
-// ROLES
-// ============================================================
-
-export function useListAllRoles() {
-  const { actor, isFetching } = useActor();
-  return useQuery<Array<[Principal, AppUserRole]>>({
-    queryKey: ["allRoles"],
-    queryFn: async () => {
-      if (!actor) return [];
+    onSuccess: (_data, settingsArg) => {
       try {
-        return await actor.listAllRoles();
-      } catch {
-        return [];
-      }
-    },
-    enabled: !!actor && !isFetching,
-    retry: 0,
-  });
-}
-
-export function useAssignRole() {
-  const { actorRef, fetchingRef } = useActorRef();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      user,
-      role,
-    }: { user: Principal; role: AppUserRole }) => {
-      const a = await waitForActor(actorRef, fetchingRef);
-      await a.assignAppRole(user, role);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allRoles"] });
+        localStorage.setItem(LS_KEY_SITE_SETTINGS, JSON.stringify(settingsArg));
+      } catch {}
+      queryClient.invalidateQueries({ queryKey: ["siteSettings"] });
     },
   });
 }
@@ -398,6 +385,7 @@ export function useAllContentBlocks() {
       return actor.getAllContentBlocks();
     },
     enabled: !!actor && !isFetching,
+    staleTime: 300_000,
   });
 }
 
@@ -433,7 +421,7 @@ export function useHomePageData() {
       return { homeSections, siteSettings, latestNews };
     },
     enabled: !!actor && !isFetching,
-    staleTime: 30_000, // 30s client-side cache
+    staleTime: 300_000,
   });
 }
 
@@ -458,8 +446,7 @@ export function usePublicNewsPaginated(page: number, pageSize: number) {
     },
     // Only run when actor is ready — prevents stale empty result caching
     enabled: !!actor && !isFetching,
-    // staleTime: 0 ensures the query re-fetches whenever it becomes enabled
-    staleTime: 0,
+    staleTime: 300_000,
     select: (data) => {
       const start = page * pageSize;
       return {

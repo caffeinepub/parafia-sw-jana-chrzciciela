@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useRef, useState } from "react";
 import { ImageWithFallback } from "../components/parish/ImagePlaceholder";
+import { AktualnosociSkeleton } from "../components/parish/PageSkeleton";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { usePublicNewsPaginated } from "../hooks/useQueries";
 import { Link } from "../router";
@@ -24,6 +25,10 @@ export function AktualnosociPage() {
     setPage(nextPage);
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  if (isLoading && !data) {
+    return <AktualnosociSkeleton />;
+  }
 
   return (
     <main className="min-h-screen pt-nav">

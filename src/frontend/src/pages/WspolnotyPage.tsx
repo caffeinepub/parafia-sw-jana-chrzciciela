@@ -13,6 +13,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { WspolnotySkeleton } from "../components/parish/PageSkeleton";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useActor } from "../hooks/useActor";
 import { Link } from "../router";
@@ -111,8 +112,20 @@ export function useWspolnotyMeta() {
 // COMMUNITY QUERIES
 // ============================================================
 
+const LS_KEY_COMMUNITIES = "parish_communities_cache";
+
 export function useAllCommunities() {
   const { actor, isFetching } = useActor();
+
+  const getLocalData = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEY_COMMUNITIES);
+      return raw ? (JSON.parse(raw) as Community[]) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   return useQuery<Community[]>({
     queryKey: ["communities"],
     queryFn: async () => {
@@ -124,14 +137,18 @@ export function useAllCommunities() {
           typeof block === "string" ? block : ((block as any)?.content ?? "");
         if (!raw) return [];
         const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
+        const result = Array.isArray(parsed) ? parsed : [];
+        try {
+          localStorage.setItem(LS_KEY_COMMUNITIES, JSON.stringify(result));
+        } catch {}
+        return result;
       } catch {
         return [];
       }
     },
     enabled: !!actor && !isFetching,
-    staleTime: 0,
-    refetchOnMount: true,
+    staleTime: 30_000,
+    placeholderData: getLocalData,
   });
 }
 
@@ -641,6 +658,10 @@ export function WspolnotyPage() {
   const { data: communities = [], isLoading } = useAllCommunities();
   const { data: meta = DEFAULT_META } = useWspolnotyMeta();
   const [selected, setSelected] = useState<Community | null>(null);
+
+  if (isLoading && communities.length === 0) {
+    return <WspolnotySkeleton />;
+  }
 
   return (
     <main className="pt-nav">

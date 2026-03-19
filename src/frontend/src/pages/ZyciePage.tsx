@@ -7,7 +7,9 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { motion } from "motion/react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useState } from "react";
+import { ZycieSkeleton } from "../components/parish/PageSkeleton";
+import { useZycieData } from "../hooks/useZycieData";
 
 // ============================================================
 // TYPES
@@ -37,39 +39,6 @@ export interface ZycieData {
   years: {
     [year: string]: ZycieYearData;
   };
-}
-
-const DEFAULT_YEARS = ["2024", "2025", "2026"];
-
-const DEFAULT_DATA: ZycieData = {
-  heroTexts: {
-    title: "Życie",
-    subtitle: "Życie naszej wspólnoty w świetle wiary",
-    description:
-      "Każdy rok przynosi nowe wydarzenia, nowe historie i nowe świadectwa życia naszej parafii.",
-  },
-  years: {
-    "2024": { heroImage: "", heroDescription: "", tiles: [] },
-    "2025": { heroImage: "", heroDescription: "", tiles: [] },
-    "2026": { heroImage: "", heroDescription: "", tiles: [] },
-  },
-};
-
-function loadZycieData(): ZycieData {
-  try {
-    const raw = localStorage.getItem("zycie_data");
-    if (!raw) return DEFAULT_DATA;
-    const parsed = JSON.parse(raw) as ZycieData;
-    // ensure default years exist
-    for (const y of DEFAULT_YEARS) {
-      if (!parsed.years[y]) {
-        parsed.years[y] = { heroImage: "", heroDescription: "", tiles: [] };
-      }
-    }
-    return parsed;
-  } catch {
-    return DEFAULT_DATA;
-  }
 }
 
 // ============================================================
@@ -239,17 +208,12 @@ function CentralYearImage({
 // ============================================================
 
 export function ZyciePage() {
-  const [data, setData] = useState<ZycieData>(loadZycieData);
+  const { data, isLoading } = useZycieData();
   const [selectedYear, setSelectedYear] = useState("2026");
 
-  const handleStorage = useCallback(() => {
-    setData(loadZycieData());
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, [handleStorage]);
+  if (isLoading && !data) {
+    return <ZycieSkeleton />;
+  }
 
   const { heroTexts } = data;
   const availableYears = Object.keys(data.years).sort(

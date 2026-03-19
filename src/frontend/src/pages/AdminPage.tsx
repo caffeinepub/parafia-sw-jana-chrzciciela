@@ -57,6 +57,8 @@ import {
   ensureAllDays,
   getWeekDates,
   getWeekId,
+  lsLoadAll,
+  lsSaveWeek,
   useLiturgy,
 } from "../hooks/useLiturgy";
 import {
@@ -2045,50 +2047,20 @@ function LiturgiaTab() {
     // Otherwise we update localStorage directly
     let targetWeek = week.id === reg.weekId ? week : null;
     if (!targetWeek) {
-      // Try from localStorage
-      const stored = localStorage.getItem("liturgy_weeks");
-      if (stored) {
-        try {
-          const all = JSON.parse(stored);
-          const raw = all[reg.weekId];
-          if (raw) {
-            targetWeek = {
-              ...raw,
-              days: raw.days.map(
-                (d: {
-                  dayIndex: number;
-                  entries: Array<{
-                    id: string;
-                    serviceType: string;
-                    entryType: string;
-                    order: number;
-                    time: string;
-                    intention: string;
-                    description: string;
-                  }>;
-                }) => ({
-                  dayIndex: BigInt(d.dayIndex),
-                  entries: d.entries.map(
-                    (e: {
-                      id: string;
-                      serviceType: string;
-                      entryType: string;
-                      order: number;
-                      time: string;
-                      intention: string;
-                      description: string;
-                    }) => ({
-                      ...e,
-                      order: BigInt(e.order),
-                    }),
-                  ),
-                }),
-              ),
-            };
-          }
-        } catch {
-          // ignore
-        }
+      // Try from localStorage using proper deserialization
+      const all = lsLoadAll();
+      const raw = all[reg.weekId];
+      if (raw) {
+        targetWeek = {
+          ...raw,
+          days: raw.days.map((d) => ({
+            dayIndex: BigInt(d.dayIndex),
+            entries: d.entries.map((e) => ({
+              ...e,
+              order: BigInt(e.order),
+            })),
+          })),
+        };
       }
     }
 
@@ -2129,16 +2101,7 @@ function LiturgiaTab() {
         await saveWeek(updatedWeek);
       } else {
         // Save directly to localStorage for other weeks
-        const stored = localStorage.getItem("liturgy_weeks");
-        const all = stored ? JSON.parse(stored) : {};
-        all[reg.weekId] = {
-          ...updatedWeek,
-          days: updatedWeek.days.map((d) => ({
-            dayIndex: Number(d.dayIndex),
-            entries: d.entries.map((e) => ({ ...e, order: Number(e.order) })),
-          })),
-        };
-        localStorage.setItem("liturgy_weeks", JSON.stringify(all));
+        lsSaveWeek(updatedWeek);
       }
 
       // Update registration status

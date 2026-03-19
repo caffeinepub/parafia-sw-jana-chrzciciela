@@ -1,26 +1,28 @@
 # Parafia sw Jana Chrzciciela
 
 ## Current State
-Stopka ma trzy kolumny: lewa (hardcoded: "Parafia św. Jana Chrzciciela" + "Strona parafialna"), środkowa (hardcoded lista linków nawigacji), prawa (Kontakt z danych admina). Nawigacja główna wyświetla hardcoded logo "PJ" + tekst. Panel admina → Ustawienia: tylko kontakt, konto bankowe, social media, tryb estetyczny. Brak edycji lewej kolumny stopki, nawigacji stopki i logo.
+
+Aplikacja posiada mechanizm cache (localStorage) dla niektórych zakładek, ale większość stron czeka na inicjalizację aktora ICP przed załadowaniem jakichkolwiek danych. Powoduje to białe ekrany lub pulsujące spinnery przy pierwszym wejściu i przy nawigacji między zakładkami. Skeleton screens istnieją tylko w niektórych sekcjach strony głównej (Aktualności, Galeria, Wspólnoty), ale brak ich na stronach podrzędnych.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Sekcja "Logo parafii" w panelu Ustawienia: upload zdjęcia logo (base64 w contactData.navLogoUrl)
-- Sekcja "Informacje w stopce" w panelu Ustawienia: nazwa parafii, motto/opis, mały obraz/ikona (contactData.parishName, parishMotto, parishIconUrl)
-- Sekcja "Nawigacja w stopce" w panelu Ustawienia: niezależna lista linków (contactData.footerNavLinks jako JSON array {name, path}[])
+- Skeleton screen components dla każdej głównej zakładki: Aktualności, Liturgia, Wspólnoty, Kancelaria, Kontakt, Modlitwa, Życie, Galeria
+- Centralny hook `useAppPreload` w App.tsx który przy starcie aplikacji (gdy aktor jest gotowy) wykonuje jedno zbiorcze zapytanie do backendu pobierając dane dla wszystkich zakładek i zapisując je do React Query cache
+- Skeleton screens muszą wizualnie odzwierciedlać kształt docelowej treści (hero placeholder, karty, siatki) -- nie mogą być prostymi szarymi blokami
 
 ### Modify
-- Navigation.tsx: jeśli navLogoUrl istnieje → wyświetl img obok tekstu; jeśli nie → sama nazwa tekstowa (jak teraz)
-- Footer.tsx lewa kolumna: czyta parishName/parishMotto/parishIconUrl z settings; wyświetla pionowo
-- Footer.tsx środkowa kolumna: czyta footerNavLinks z settings zamiast hardcoded listy; wyświetla pionowo
-- AdminPage SettingsTab: dodaje trzy nowe sekcje edycji
+- Wszystkie strony (LiturgiaPage, AktualnosociPage, WspolnotyPage, KancelariaPage, KontaktPage, ModlitwaPage, ZyciePage, GaleriaPage) -- dodać skeleton loading state zamiast białego ekranu lub prostego spinnera
+- useQueries.ts -- zwiększyć staleTime dla kluczowych zapytań do 5 minut (300_000ms) aby dane nie były odświeżane przy każdej nawigacji
+- HomePage -- już ma skeleton screens w sekcjach, zachować bez zmian
 
 ### Remove
-- Hardcoded statyczne dane w lewej i środkowej kolumnie stopki
+- Nic nie usuwać
 
 ## Implementation Plan
-1. Rozszerzyć contactData JSON o pola: navLogoUrl, parishName, parishMotto, parishIconUrl, footerNavLinks
-2. AdminPage SettingsTab: dodać 3 nowe sekcje (logo nav, info parafia w stopce, nawigacja stopki)
-3. Footer.tsx: lewa kolumna czyta z settings, środkowa kolumna z footerNavLinks z settings
-4. Navigation.tsx: logo warunkowe (img + tekst jeśli navLogoUrl, sam tekst jeśli nie)
+
+1. Stworzyć komponent `PageSkeleton` w `src/frontend/src/components/parish/PageSkeleton.tsx` z wariantami dla każdego typu strony (hero+cards, hero+grid, hero+list)
+2. Stworzyć hook `useAppPreload` w `src/frontend/src/hooks/useAppPreload.ts` który przy gotowości aktora wywołuje wszystkie główne query równolegle przez Promise.all, populując React Query cache
+3. Dodać wywołanie `useAppPreload` w App.tsx (lub w AppLayout) -- jeden raz przy starcie aplikacji
+4. Dodać skeleton loading state do: AktualnosociPage, LiturgiaPage, WspolnotyPage, KancelariaPage, KontaktPage, ModlitwaPage, ZyciePage, GaleriaPage
+5. Zwiększyć staleTime w useQueries.ts dla: publicNews, galleryAlbums, homeSections, siteSettings, contentBlocks
