@@ -1,7 +1,6 @@
 import {
   ChevronLeft,
   ChevronRight,
-  Copy,
   Eraser,
   Pencil,
   Plus,
@@ -1170,16 +1169,8 @@ export function LiturgiaPage() {
   const { identity } = useInternetIdentity();
   const isAdmin = !!identity;
 
-  const {
-    week,
-    weekId,
-    isLoading,
-    isSaving,
-    loadWeek,
-    saveWeek,
-    copyFromPreviousWeek,
-    clearWeek,
-  } = useLiturgy();
+  const { week, weekId, isLoading, isSaving, loadWeek, saveWeek, clearWeek } =
+    useLiturgy();
 
   // Dialog state: which day + type
   const [massDialog, setMassDialog] = useState<number | null>(null);
@@ -1265,16 +1256,9 @@ export function LiturgiaPage() {
     loadWeek(nextId);
   };
 
-  const handleCopyPrev = async () => {
-    try {
-      await copyFromPreviousWeek();
-      toast.success("Skopiowano poprzedni tydzień (bez intencji)");
-    } catch {
-      toast.error("Błąd kopiowania");
-    }
-  };
-
   const handleClearWeek = async () => {
+    if (!window.confirm("Czy na pewno chcesz wyczyścić grafik tego tygodnia?"))
+      return;
     try {
       await clearWeek();
       toast.success("Tydzień wyczyszczony");
@@ -1392,17 +1376,6 @@ export function LiturgiaPage() {
             {/* Admin week controls */}
             {isAdmin && (
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyPrev}
-                  disabled={isSaving}
-                  className="font-sans font-light text-xs h-8"
-                  data-ocid="liturgia.copy_week.button"
-                >
-                  <Copy className="w-3 h-3 mr-1.5" />
-                  Kopiuj poprzedni
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"

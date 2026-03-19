@@ -44,6 +44,16 @@ export function Navigation() {
     return DEFAULT_NAV;
   }, [settings]);
 
+  const navLogoUrl = React.useMemo(() => {
+    if (settings?.contactData) {
+      try {
+        const d = JSON.parse(settings.contactData) as { navLogoUrl?: string };
+        return d.navLogoUrl || "";
+      } catch {}
+    }
+    return "";
+  }, [settings]);
+
   useEffect(() => {
     function handleScroll() {
       setScrolled(window.scrollY > 20);
@@ -73,11 +83,19 @@ export function Navigation() {
           className="flex items-center gap-3 shrink-0"
           data-ocid="nav.logo.link"
         >
-          <div className="w-10 h-10 rounded-full border-2 border-border bg-accent/30 flex items-center justify-center">
-            <span className="font-display text-sm font-light text-foreground/70">
-              PJ
-            </span>
-          </div>
+          {navLogoUrl ? (
+            <img
+              src={navLogoUrl}
+              alt="Logo parafii"
+              className="w-10 h-10 rounded-full object-cover border-2 border-border"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full border-2 border-border bg-accent/30 flex items-center justify-center">
+              <span className="font-display text-sm font-light text-foreground/70">
+                PJ
+              </span>
+            </div>
+          )}
           <div className="hidden sm:block">
             <div className="font-display text-sm font-light leading-tight text-foreground">
               Parafia

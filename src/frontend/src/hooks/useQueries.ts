@@ -444,14 +444,22 @@ export function useHomePageData() {
 export function usePublicNewsPaginated(page: number, pageSize: number) {
   const { actor, isFetching } = useActor();
   return useQuery({
-    queryKey: ["publicNewsPaginated"],
+    queryKey: ["publicNewsPaginated", page, pageSize],
     queryFn: async () => {
       if (!actor) return { items: [] as NewsArticle[], total: 0 };
       const items = await actor.getPublicNews();
-      return { items, total: items.length };
+      // Sort by date descending (newest first)
+      const sorted = [...items].sort((a, b) => {
+        const da = new Date(a.date).getTime();
+        const db = new Date(b.date).getTime();
+        return db - da;
+      });
+      return { items: sorted, total: sorted.length };
     },
+    // Only run when actor is ready — prevents stale empty result caching
     enabled: !!actor && !isFetching,
-    staleTime: 30_000,
+    // staleTime: 0 ensures the query re-fetches whenever it becomes enabled
+    staleTime: 0,
     select: (data) => {
       const start = page * pageSize;
       return {

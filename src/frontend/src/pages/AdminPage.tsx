@@ -45,7 +45,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  AppUserRole,
   ExternalBlob,
   type GalleryAlbum,
   type GalleryPhoto,
@@ -71,7 +70,6 @@ import {
   useAddPhoto,
   useAllContentBlocks,
   useAllNews,
-  useAssignRole,
   useCreateAlbum,
   useCreateNews,
   useDeleteAlbum,
@@ -79,7 +77,6 @@ import {
   useGalleryAlbums,
   useGetCallerUserProfile,
   useHomeSections,
-  useListAllRoles,
   useRemovePhoto,
   useSiteSettings,
   useUpdateAlbum,
@@ -1497,12 +1494,22 @@ function SettingsTab() {
     youtube: "",
     twitter: "",
     cmentarzUrl: "",
+    navLogoUrl: "",
+    parishName: "",
+    parishMotto: "",
+    parishIconUrl: "",
+    footerNavLinks: "[]",
   });
   const [aestheticMode, setAestheticMode] = useState("jordan");
+  const [footerNavItems, setFooterNavItems] = useState<
+    { name: string; path: string }[]
+  >([]);
+  const [newFooterLink, setNewFooterLink] = useState({ name: "", path: "" });
 
   React.useEffect(() => {
     if (settings) {
       try {
+        const parsed = JSON.parse(settings.contactData || "{}");
         setContact({
           address: "",
           phone: "",
@@ -1513,8 +1520,17 @@ function SettingsTab() {
           youtube: "",
           twitter: "",
           cmentarzUrl: "",
-          ...JSON.parse(settings.contactData || "{}"),
+          navLogoUrl: "",
+          parishName: "",
+          parishMotto: "",
+          parishIconUrl: "",
+          footerNavLinks: "[]",
+          ...parsed,
         });
+        try {
+          const navItems = JSON.parse(parsed.footerNavLinks || "[]");
+          setFooterNavItems(navItems);
+        } catch {}
       } catch {}
       setAestheticMode(settings.aestheticMode || "jordan");
     }
@@ -1528,7 +1544,10 @@ function SettingsTab() {
     try {
       await update.mutateAsync({
         ...base,
-        contactData: JSON.stringify(contact),
+        contactData: JSON.stringify({
+          ...contact,
+          footerNavLinks: JSON.stringify(footerNavItems),
+        }),
         aestheticMode,
       });
       toast.success("Ustawienia zapisane");
@@ -1536,6 +1555,29 @@ function SettingsTab() {
       toast.error("Błąd zapisu");
     }
   };
+
+  const handleLogoUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: "navLogoUrl" | "parishIconUrl",
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () =>
+      setContact((p) => ({ ...p, [field]: reader.result as string }));
+    reader.readAsDataURL(file);
+  };
+
+  const QUICK_NAV_LINKS = [
+    { name: "Aktualności", path: "/aktualnosci" },
+    { name: "Liturgia", path: "/liturgia" },
+    { name: "Wspólnoty", path: "/wspolnoty" },
+    { name: "Galeria", path: "/galeria" },
+    { name: "Kancelaria", path: "/kancelaria" },
+    { name: "Kontakt", path: "/kontakt" },
+    { name: "Modlitwa", path: "/modlitwa" },
+    { name: "Życie", path: "/zycie" },
+  ];
 
   return (
     <div className="space-y-8">
@@ -1573,6 +1615,262 @@ function SettingsTab() {
               {m}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Section A: Logo parafii */}
+      <div className="space-y-4">
+        <h3 className="font-display text-base font-light text-foreground/70">
+          Logo parafii (nawigacja)
+        </h3>
+        <p className="text-sm text-muted-foreground font-sans">
+          Jeśli wgrasz logo, pojawi się obok nazwy parafii w górnym pasku
+          nawigacji. Jeśli brak, wyświetla się sama nazwa tekstowa.
+        </p>
+        <div className="flex items-center gap-4">
+          {contact.navLogoUrl ? (
+            <img
+              src={contact.navLogoUrl}
+              alt="Logo podgląd"
+              className="w-16 h-16 rounded-full object-cover border-2 border-border"
+            />
+          ) : (
+            <label
+              className="w-16 h-16 rounded-full border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors"
+              title="Kliknij, aby wgrać logo"
+            >
+              <span className="text-xs text-muted-foreground font-sans text-center leading-tight px-1">
+                +<br />
+                logo
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleLogoUpload(e, "navLogoUrl")}
+                data-ocid="admin.settings.navlogo.upload_button"
+              />
+            </label>
+          )}
+          <div className="space-y-2">
+            {contact.navLogoUrl && (
+              <>
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-dashed border-border cursor-pointer hover:bg-accent/30 transition-colors text-xs text-muted-foreground font-sans">
+                  Zmień logo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleLogoUpload(e, "navLogoUrl")}
+                    data-ocid="admin.settings.navlogo.change.upload_button"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setContact((p) => ({ ...p, navLogoUrl: "" }))}
+                  className="block text-xs text-destructive hover:underline font-sans"
+                  data-ocid="admin.settings.navlogo.delete_button"
+                >
+                  Usuń logo
+                </button>
+              </>
+            )}
+            {!contact.navLogoUrl && (
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-dashed border-border cursor-pointer hover:bg-accent/30 transition-colors text-xs text-muted-foreground font-sans">
+                Wgraj logo
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleLogoUpload(e, "navLogoUrl")}
+                />
+              </label>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Section B: Parish info for footer left column */}
+      <div className="space-y-4">
+        <h3 className="font-display text-base font-light text-foreground/70">
+          Informacje w stopce (lewa kolumna)
+        </h3>
+        <p className="text-sm text-muted-foreground font-sans">
+          Edytuj lewą kolumnę stopki – nazwa parafii, motto i mała ikona.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Nazwa parafii</Label>
+            <Input
+              value={contact.parishName}
+              onChange={(e) =>
+                setContact((p) => ({ ...p, parishName: e.target.value }))
+              }
+              placeholder="Parafia św. Jana Chrzciciela"
+              className="font-sans"
+              data-ocid="admin.settings.parishname.input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Motto / krótki opis</Label>
+            <Input
+              value={contact.parishMotto}
+              onChange={(e) =>
+                setContact((p) => ({ ...p, parishMotto: e.target.value }))
+              }
+              placeholder="Strona parafialna"
+              className="font-sans"
+              data-ocid="admin.settings.parishmotto.input"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label className="font-sans font-light">
+            Ikona / miniaturka parafii
+          </Label>
+          <div className="flex items-center gap-4">
+            {contact.parishIconUrl ? (
+              <img
+                src={contact.parishIconUrl}
+                alt="Ikona podgląd"
+                className="w-12 h-12 rounded-full object-cover border-2 border-border"
+              />
+            ) : (
+              <label className="w-12 h-12 rounded-full border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors">
+                <span className="text-xs text-muted-foreground font-sans">
+                  +
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleLogoUpload(e, "parishIconUrl")}
+                  data-ocid="admin.settings.parishicon.upload_button"
+                />
+              </label>
+            )}
+            {contact.parishIconUrl && (
+              <div className="space-y-1">
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-dashed border-border cursor-pointer hover:bg-accent/30 transition-colors text-xs text-muted-foreground font-sans">
+                  Zmień ikonę
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleLogoUpload(e, "parishIconUrl")}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setContact((p) => ({ ...p, parishIconUrl: "" }))
+                  }
+                  className="block text-xs text-destructive hover:underline font-sans"
+                  data-ocid="admin.settings.parishicon.delete_button"
+                >
+                  Usuń ikonę
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Section C: Footer navigation */}
+      <div className="space-y-4">
+        <h3 className="font-display text-base font-light text-foreground/70">
+          Nawigacja w stopce (środkowa kolumna)
+        </h3>
+        <p className="text-sm text-muted-foreground font-sans">
+          Ustaw niezależną listę linków wyświetlanych w środkowej kolumnie
+          stopki.
+        </p>
+        {footerNavItems.length > 0 && (
+          <div className="space-y-2">
+            {footerNavItems.map((item, idx) => (
+              <div
+                key={item.path}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/40"
+                data-ocid={`admin.settings.footernav.item.${idx + 1}`}
+              >
+                <span className="text-sm font-sans text-foreground flex-1">
+                  {item.name}
+                </span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {item.path}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFooterNavItems((prev) =>
+                      prev.filter((_, i) => i !== idx),
+                    )
+                  }
+                  className="text-xs text-destructive hover:underline font-sans shrink-0"
+                  data-ocid={`admin.settings.footernav.delete_button.${idx + 1}`}
+                >
+                  Usuń
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_NAV_LINKS.filter(
+              (q) => !footerNavItems.find((f) => f.path === q.path),
+            ).map((q) => (
+              <button
+                key={q.path}
+                type="button"
+                onClick={() => setFooterNavItems((prev) => [...prev, q])}
+                className="px-2.5 py-1 rounded-full text-xs font-sans bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition-colors border border-border"
+                data-ocid="admin.settings.footernav.quickadd.button"
+              >
+                + {q.name}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-end gap-2">
+            <div className="space-y-1 flex-1">
+              <Label className="font-sans font-light text-xs">
+                Własna nazwa
+              </Label>
+              <Input
+                value={newFooterLink.name}
+                onChange={(e) =>
+                  setNewFooterLink((p) => ({ ...p, name: e.target.value }))
+                }
+                placeholder="np. Rekolekcje"
+                className="font-sans text-sm"
+                data-ocid="admin.settings.footernav.name.input"
+              />
+            </div>
+            <div className="space-y-1 flex-1">
+              <Label className="font-sans font-light text-xs">Ścieżka</Label>
+              <Input
+                value={newFooterLink.path}
+                onChange={(e) =>
+                  setNewFooterLink((p) => ({ ...p, path: e.target.value }))
+                }
+                placeholder="/liturgia"
+                className="font-sans text-sm"
+                data-ocid="admin.settings.footernav.path.input"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!newFooterLink.name || !newFooterLink.path) return;
+                setFooterNavItems((prev) => [...prev, newFooterLink]);
+                setNewFooterLink({ name: "", path: "" });
+              }}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-sans hover:bg-primary/90 transition-colors whitespace-nowrap"
+              data-ocid="admin.settings.footernav.add.button"
+            >
+              Dodaj
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1706,103 +2004,6 @@ function SettingsTab() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ============================================================
-// ROLES TAB
-// ============================================================
-
-function RolesTab() {
-  const { data: roles, isLoading } = useListAllRoles();
-  const assign = useAssignRole();
-
-  const handleAssign = async (
-    user: import("@icp-sdk/core/principal").Principal,
-    role: AppUserRole,
-  ) => {
-    try {
-      await assign.mutateAsync({ user, role });
-      toast.success("Rola przypisana");
-    } catch {
-      toast.error("Błąd przypisywania roli");
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <h2 className="font-display text-xl font-light">Role użytkowników</h2>
-
-      {isLoading ? (
-        <div className="space-y-3" data-ocid="admin.roles.loading_state">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-14 w-full" />
-          ))}
-        </div>
-      ) : !roles || roles.length === 0 ? (
-        <div
-          className="text-center py-16 border border-dashed border-border rounded-xl"
-          data-ocid="admin.roles.empty_state"
-        >
-          <p className="font-sans text-sm text-muted-foreground">
-            Brak przypisanych ról.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {roles.map(([principal, role], i) => (
-            <div
-              key={principal.toString()}
-              className="flex items-center gap-4 bg-card rounded-lg p-4 border border-border"
-              data-ocid={`admin.roles.item.${i + 1}`}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="font-sans text-xs text-muted-foreground font-mono truncate">
-                  {principal.toString()}
-                </p>
-              </div>
-              <Select
-                value={role}
-                onValueChange={(v) => handleAssign(principal, v as AppUserRole)}
-              >
-                <SelectTrigger
-                  className="w-36 font-sans text-sm"
-                  data-ocid={`admin.roles.role.select.${i + 1}`}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    value={AppUserRole.admin}
-                    className="font-sans capitalize"
-                  >
-                    Admin
-                  </SelectItem>
-                  <SelectItem
-                    value={AppUserRole.editor}
-                    className="font-sans capitalize"
-                  >
-                    Redaktor
-                  </SelectItem>
-                  <SelectItem
-                    value={AppUserRole.moderator}
-                    className="font-sans capitalize"
-                  >
-                    Moderator
-                  </SelectItem>
-                  <SelectItem
-                    value={AppUserRole.photographer}
-                    className="font-sans capitalize"
-                  >
-                    Fotograf
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -2252,7 +2453,6 @@ export function AdminPage() {
               { value: "kancelaria", label: "Kancelaria" },
               { value: "modlitwa", label: "Modlitwa" },
               { value: "zycie", label: "Życie" },
-              { value: "role", label: "Role" },
             ].map((tab) => (
               <TabsTrigger
                 key={tab.value}
@@ -2297,9 +2497,6 @@ export function AdminPage() {
           </TabsContent>
           <TabsContent value="zycie">
             <AdminZycieTab />
-          </TabsContent>
-          <TabsContent value="role">
-            <RolesTab />
           </TabsContent>
         </Tabs>
       </div>

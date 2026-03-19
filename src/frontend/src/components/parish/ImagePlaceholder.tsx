@@ -16,7 +16,8 @@ export function ImageWithFallback({
   aspect = "video",
 }: ImagePlaceholderProps) {
   const [error, setError] = React.useState(false);
-  const url = blob ? blob.getDirectURL() : "";
+  const url =
+    blob && typeof blob.getDirectURL === "function" ? blob.getDirectURL() : "";
   const hasImage = url && url !== "" && !error;
 
   const aspectClasses = {

@@ -22,16 +22,37 @@ export function Footer() {
     if (settings?.contactData) {
       try {
         return JSON.parse(settings.contactData) as {
+          address?: string;
+          phone?: string;
+          email?: string;
+          hours?: string;
           bankAccount?: string;
           facebook?: string;
           youtube?: string;
           twitter?: string;
           cmentarzUrl?: string;
+          parishName?: string;
+          parishMotto?: string;
+          parishIconUrl?: string;
+          footerNavLinks?: string;
+          navLogoUrl?: string;
         };
       } catch {}
     }
     return {};
   }, [settings]);
+
+  const footerNavItems = React.useMemo(() => {
+    if (!contactData.footerNavLinks) return [];
+    try {
+      return JSON.parse(contactData.footerNavLinks) as {
+        name: string;
+        path: string;
+      }[];
+    } catch {
+      return [];
+    }
+  }, [contactData]);
 
   const handleCopy = async () => {
     if (!contactData.bankAccount) return;
@@ -55,102 +76,150 @@ export function Footer() {
     <footer className="border-t border-border bg-card/40 py-12 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {/* Parish info */}
+          {/* Left column: Parish info */}
           <div className="space-y-3">
+            {contactData.parishIconUrl && (
+              <img
+                src={contactData.parishIconUrl}
+                alt="Ikona parafii"
+                className="w-10 h-10 object-cover rounded-full"
+              />
+            )}
             <div className="font-display text-base font-light text-foreground">
-              Parafia św. Jana Chrzciciela
+              {contactData.parishName || "Parafia św. Jana Chrzciciela"}
             </div>
             <p className="text-xs text-muted-foreground font-sans leading-relaxed">
-              Strona parafialna
+              {contactData.parishMotto || "Strona parafialna"}
             </p>
           </div>
 
-          {/* Navigation links */}
-          <div className="space-y-3">
-            <div className="font-display text-sm font-light text-foreground/60 uppercase tracking-widest text-xs">
-              Nawigacja
+          {/* Middle column: Navigation */}
+          {footerNavItems.length > 0 ? (
+            <div className="space-y-3">
+              <div className="font-display text-sm font-light text-foreground/60 uppercase tracking-widest text-xs">
+                Nawigacja
+              </div>
+              <div className="flex flex-col space-y-2">
+                {footerNavItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className="text-xs text-muted-foreground hover:text-foreground font-sans transition-colors duration-200"
+                    data-ocid={`footer.${item.name.toLowerCase().replace(/[^a-z0-9]/g, "")}.link`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-1">
-              {[
-                { name: "Aktualności", path: "/aktualnosci" },
-                { name: "Liturgia", path: "/liturgia" },
-                { name: "Wspólnoty", path: "/wspolnoty" },
-                { name: "Galeria", path: "/galeria" },
-                { name: "Kancelaria", path: "/kancelaria" },
-                { name: "Kontakt", path: "/kontakt" },
-                { name: "Modlitwa", path: "/modlitwa" },
-              ].map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className="text-xs text-muted-foreground hover:text-foreground font-sans transition-colors duration-200"
-                  data-ocid={`footer.${item.name.toLowerCase().replace(/[^a-z0-9]/g, "")}.link`}
-                >
-                  {item.name}
-                </Link>
-              ))}
+          ) : (
+            <div className="space-y-3">
+              <div className="font-display text-sm font-light text-foreground/60 uppercase tracking-widest text-xs">
+                Nawigacja
+              </div>
+              <div className="flex flex-col space-y-2">
+                {[
+                  { name: "Aktualności", path: "/aktualnosci" },
+                  { name: "Liturgia", path: "/liturgia" },
+                  { name: "Wspólnoty", path: "/wspolnoty" },
+                  { name: "Galeria", path: "/galeria" },
+                  { name: "Kancelaria", path: "/kancelaria" },
+                  { name: "Kontakt", path: "/kontakt" },
+                  { name: "Modlitwa", path: "/modlitwa" },
+                ].map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className="text-xs text-muted-foreground hover:text-foreground font-sans transition-colors duration-200"
+                    data-ocid={`footer.${item.name.toLowerCase().replace(/[^a-z0-9]/g, "")}.link`}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Contact & Social */}
+          {/* Right column: Contact & Social */}
           <div className="space-y-3">
             <div className="font-display text-sm font-light text-foreground/60 uppercase tracking-widest text-xs">
               Kontakt
             </div>
 
-            {hasSocialOrBank ? (
-              <div className="space-y-3">
-                {/* Bank account */}
-                {contactData.bankAccount && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground font-sans">
-                      Konto bankowe:
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-foreground/80 break-all flex-1">
-                        {contactData.bankAccount}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleCopy}
-                        className="shrink-0 w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
-                        title="Kopiuj numer konta"
-                        data-ocid="footer.bankaccount.button"
-                      >
-                        {copied ? (
-                          <Check className="w-3 h-3 text-green-600" />
-                        ) : (
-                          <Copy className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
+            <div className="space-y-2">
+              {contactData.address && (
+                <p className="text-xs text-muted-foreground font-sans whitespace-pre-line leading-relaxed">
+                  {contactData.address}
+                </p>
+              )}
+              {contactData.phone && (
+                <p className="text-xs text-muted-foreground font-sans">
+                  Tel: {contactData.phone}
+                </p>
+              )}
+              {contactData.email && (
+                <a
+                  href={`mailto:${contactData.email}`}
+                  className="block text-xs text-muted-foreground hover:text-foreground font-sans transition-colors"
+                  data-ocid="footer.email.link"
+                >
+                  {contactData.email}
+                </a>
+              )}
 
-                {/* Social links */}
-                {socialLinks.length > 0 && (
-                  <div className="space-y-1.5">
-                    {socialLinks.map(({ icon: Icon, label, url }) => (
-                      <a
-                        key={label}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground font-sans transition-colors group"
-                        data-ocid={`footer.social.${label.toLowerCase().replace(/[^a-z0-9]/g, "")}.link`}
-                      >
-                        <Icon className="w-3 h-3 shrink-0" />
-                        {label}
-                      </a>
-                    ))}
+              {contactData.bankAccount && (
+                <div className="space-y-1 pt-1">
+                  <p className="text-xs text-muted-foreground/60 font-sans">
+                    Konto bankowe:
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-foreground/80 break-all flex-1">
+                      {contactData.bankAccount}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      className="shrink-0 w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+                      title="Kopiuj numer konta"
+                      data-ocid="footer.bankaccount.button"
+                    >
+                      {copied ? (
+                        <Check className="w-3 h-3 text-green-600" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </button>
                   </div>
+                </div>
+              )}
+
+              {socialLinks.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  {socialLinks.map(({ icon: Icon, label, url }) => (
+                    <a
+                      key={label}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground font-sans transition-colors group"
+                      data-ocid={`footer.social.${label.toLowerCase().replace(/[^a-z0-9]/g, "")}.link`}
+                    >
+                      <Icon className="w-3 h-3 shrink-0" />
+                      {label}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {!contactData.address &&
+                !contactData.phone &&
+                !contactData.email &&
+                !hasSocialOrBank && (
+                  <p className="text-xs text-muted-foreground font-sans">
+                    Dane kontaktowe dostępne w zakładce Kontakt
+                  </p>
                 )}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground font-sans">
-                Dane kontaktowe dostępne w zakładce Kontakt
-              </p>
-            )}
+            </div>
           </div>
         </div>
 

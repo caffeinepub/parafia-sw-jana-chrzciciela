@@ -3,7 +3,11 @@ import React from "react";
 import type { GalleryAlbum, NewsArticle } from "../backend";
 import { ImageWithFallback } from "../components/parish/ImagePlaceholder";
 import { SectionReveal } from "../components/parish/SectionReveal";
-import { useGalleryAlbums, useHomePageData } from "../hooks/useQueries";
+import {
+  useGalleryAlbums,
+  useHomePageData,
+  useSiteSettings,
+} from "../hooks/useQueries";
 import { Link } from "../router";
 import { useAllCommunities } from "./WspolnotyPage";
 
@@ -178,9 +182,11 @@ function SlowoSection({
 function AktualnosociSection({
   news,
   isLoading,
+  customTitle,
 }: {
   news?: NewsArticle[];
   isLoading?: boolean;
+  customTitle?: string;
 }) {
   const latest = news?.slice(0, 3) || [];
 
@@ -188,22 +194,22 @@ function AktualnosociSection({
     <SectionReveal>
       <section className="py-24 px-4 bg-muted/20">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-end justify-between mb-12">
-            <div>
-              <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
-                Aktualności
-              </p>
-              <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
-                Co nowego
-              </h2>
+          <div className="text-center mb-12">
+            <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              Aktualności
+            </p>
+            <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
+              {customTitle || "Co nowego"}
+            </h2>
+            <div className="mt-4">
+              <Link
+                to="/aktualnosci"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans transition-colors"
+                data-ocid="home.aktualnosci.link"
+              >
+                Wszystkie aktualności <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
-            <Link
-              to="/aktualnosci"
-              className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans transition-colors"
-              data-ocid="home.aktualnosci.link"
-            >
-              Wszystkie aktualności <ChevronRight className="w-4 h-4" />
-            </Link>
           </div>
 
           {isLoading ? (
@@ -264,45 +270,35 @@ function AktualnosociSection({
               ))}
             </div>
           )}
-
-          <div className="mt-8 text-center sm:hidden">
-            <Link
-              to="/aktualnosci"
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans"
-              data-ocid="home.aktualnosci.mobile.link"
-            >
-              Wszystkie aktualności <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
         </div>
       </section>
     </SectionReveal>
   );
 }
 
-function WspolnotySection() {
+function WspolnotySection({ customTitle }: { customTitle?: string }) {
   const { data: communities = [], isLoading } = useAllCommunities();
   const first3 = communities.slice(0, 3);
   return (
     <SectionReveal>
       <section className="py-24 px-4 bg-muted/20">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-end justify-between mb-12">
-            <div>
-              <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
-                Wspólnoty
-              </p>
-              <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
-                Nasze wspólnoty parafialne
-              </h2>
+          <div className="text-center mb-12">
+            <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              Wspólnoty
+            </p>
+            <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
+              {customTitle || "Nasze wspólnoty parafialne"}
+            </h2>
+            <div className="mt-4">
+              <Link
+                to="/wspolnoty"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans transition-colors"
+                data-ocid="home.wspolnoty.link"
+              >
+                Wszystkie wspólnoty <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
-            <Link
-              to="/wspolnoty"
-              className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans transition-colors"
-              data-ocid="home.wspolnoty.link"
-            >
-              Wszystkie wspólnoty <ChevronRight className="w-4 h-4" />
-            </Link>
           </div>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -374,9 +370,11 @@ function WspolnotySection() {
 function GaleriaSection({
   albums,
   isLoading,
+  customTitle,
 }: {
   albums?: GalleryAlbum[];
   isLoading?: boolean;
+  customTitle?: string;
 }) {
   const latest = albums?.[0];
 
@@ -384,22 +382,22 @@ function GaleriaSection({
     <SectionReveal>
       <section className="py-24 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-end justify-between mb-12">
-            <div>
-              <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
-                Pamięć Światła
-              </p>
-              <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
-                Galeria
-              </h2>
+          <div className="text-center mb-12">
+            <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              Pamięć Światła
+            </p>
+            <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
+              {customTitle || "Galeria"}
+            </h2>
+            <div className="mt-4">
+              <Link
+                to="/galeria"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans transition-colors"
+                data-ocid="home.galeria.link"
+              >
+                Cała galeria <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
-            <Link
-              to="/galeria"
-              className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-sans transition-colors"
-              data-ocid="home.galeria.link"
-            >
-              Cała galeria <ChevronRight className="w-4 h-4" />
-            </Link>
           </div>
 
           {isLoading ? (
@@ -470,7 +468,50 @@ function CytatSection({ content }: { content?: string }) {
   );
 }
 
-function KontaktSection() {
+function KontaktSection({ customTitle }: { customTitle?: string }) {
+  const { data: settings } = useSiteSettings();
+  const contactData = React.useMemo(() => {
+    if (settings?.contactData) {
+      try {
+        return JSON.parse(settings.contactData) as {
+          address?: string;
+          phone?: string;
+          email?: string;
+          hours?: string;
+          bankAccount?: string;
+          facebook?: string;
+          youtube?: string;
+          twitter?: string;
+          cmentarzUrl?: string;
+        };
+      } catch {}
+    }
+    return {};
+  }, [settings]);
+
+  const items = [
+    {
+      label: "Adres",
+      value: contactData.address,
+      placeholder: "ul. Parafialna 1\n00-000 Miasto",
+    },
+    {
+      label: "Telefon",
+      value: contactData.phone,
+      placeholder: "+48 000 000 000",
+    },
+    {
+      label: "E-mail",
+      value: contactData.email,
+      placeholder: "parafia@example.pl",
+    },
+    {
+      label: "Kancelaria",
+      value: contactData.hours,
+      placeholder: "Pn–Pt: 9:00–12:00\nSr: 16:00–18:00",
+    },
+  ];
+
   return (
     <SectionReveal>
       <section className="py-24 px-4">
@@ -480,22 +521,11 @@ function KontaktSection() {
               Jesteśmy dla Ciebie
             </p>
             <h2 className="font-display text-3xl sm:text-4xl font-extralight text-foreground">
-              Kontakt
+              {customTitle || "Kontakt"}
             </h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              {
-                label: "Adres",
-                placeholder: "ul. Parafialna 1\n00-000 Miasto",
-              },
-              { label: "Telefon", placeholder: "+48 000 000 000" },
-              { label: "E-mail", placeholder: "parafia@example.pl" },
-              {
-                label: "Kancelaria",
-                placeholder: "Pn–Pt: 9:00–12:00\nSr: 16:00–18:00",
-              },
-            ].map((item) => (
+            {items.map((item) => (
               <div
                 key={item.label}
                 className="bg-card rounded-xl p-6 border border-border space-y-2"
@@ -503,9 +533,15 @@ function KontaktSection() {
                 <p className="font-sans text-xs uppercase tracking-[0.15em] text-muted-foreground">
                   {item.label}
                 </p>
-                <p className="font-display text-sm font-light text-muted-foreground/60 whitespace-pre-line italic">
-                  {item.placeholder}
-                </p>
+                {item.value ? (
+                  <p className="font-display text-sm font-light text-foreground whitespace-pre-line">
+                    {item.value}
+                  </p>
+                ) : (
+                  <p className="font-display text-sm font-light text-muted-foreground/40 whitespace-pre-line italic">
+                    {item.placeholder}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -561,16 +597,23 @@ export function HomePage() {
             key={section.id}
             news={homeData?.latestNews}
             isLoading={isLoading}
+            customTitle={section.customTitle}
           />
         );
       case "wspolnoty":
-        return <WspolnotySection key={section.id} />;
+        return (
+          <WspolnotySection
+            key={section.id}
+            customTitle={section.customTitle}
+          />
+        );
       case "galeria":
         return (
           <GaleriaSection
             key={section.id}
             albums={albums}
             isLoading={albumsLoading}
+            customTitle={section.customTitle}
           />
         );
       case "cytat_duchowy":
@@ -578,7 +621,9 @@ export function HomePage() {
           <CytatSection key={section.id} content={section.customContent} />
         );
       case "kontakt":
-        return <KontaktSection key={section.id} />;
+        return (
+          <KontaktSection key={section.id} customTitle={section.customTitle} />
+        );
       default:
         return null;
     }

@@ -230,7 +230,6 @@ export interface LiturgyState {
   error: string | null;
   loadWeek: (id: string) => Promise<void>;
   saveWeek: (week: LiturgyWeek) => Promise<void>;
-  copyFromPreviousWeek: () => Promise<void>;
   clearWeek: () => Promise<void>;
   deleteWeek: () => Promise<void>;
 }
@@ -245,7 +244,19 @@ export function useLiturgy(): LiturgyState {
   const currentWeekId = getWeekId(new Date());
   const [weekId, setWeekId] = React.useState(currentWeekId);
   const [week, setWeek] = React.useState<LiturgyWeek | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+
+  // Ref to always hold the latest weekId — used in async effects to
+  // guard against applying stale backend responses to the wrong week.
+  const weekIdRef = React.useRef(weekId);
+  React.useEffect(() => {
+    weekIdRef.current = weekId;
+  }, [weekId]);
+
+  // Initialize isLoading based on whether localStorage already has data.
+  // If cache exists, show it immediately (no skeleton).
+  const [isLoading, setIsLoading] = React.useState(
+    () => lsGetWeek(getWeekId(new Date())) === null,
+  );
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -265,14 +276,17 @@ export function useLiturgy(): LiturgyState {
     async (id: string) => {
       setError(null);
       setWeekId(id);
+      weekIdRef.current = id;
 
-      // 1. Show localStorage immediately (fast path — no loading delay)
+      // 1. Clear stale data immediately so the previous week's entries
+      //    don't flash while the new week is loading.
       const local = lsGetWeek(id);
       if (local) {
         setWeek(ensureAllDays(local));
         setIsLoading(false);
       } else {
-        setIsLoading(true); // only show skeleton if nothing in localStorage
+        setWeek(buildEmptyWeek(id)); // clear stale previous-week data
+        setIsLoading(true); // show skeleton only if nothing in cache
       }
 
       // 2. Refresh from backend silently in background
@@ -284,7 +298,8 @@ export function useLiturgy(): LiturgyState {
               id === currentWeekId
                 ? await a.getCurrentLiturgyWeek()
                 : await a.getLiturgyWeek(id);
-            if (fetched) {
+            // Only apply result if the user hasn't navigated away
+            if (fetched && weekIdRef.current === id) {
               const backendResult = ensureAllDays(fetched);
               lsSaveWeek(backendResult);
               setWeek(backendResult);
@@ -293,7 +308,7 @@ export function useLiturgy(): LiturgyState {
         } catch {
           // Backend unavailable — localStorage data is already shown
         } finally {
-          setIsLoading(false);
+          if (weekIdRef.current === id) setIsLoading(false);
         }
       })();
     },
@@ -328,84 +343,13 @@ export function useLiturgy(): LiturgyState {
     [tryGetActor],
   );
 
-  const copyFromPreviousWeek = React.useCallback(async () => {
-    setIsSaving(true);
-    setError(null);
-
-    const fromId = adjacentWeekId(weekId, -1);
-    const { start, end } = getWeekDates(weekId);
-
-    // 1. Load previous week from localStorage (or backend)
-    let prevWeek: LiturgyWeek | null = lsGetWeek(fromId);
-    if (!prevWeek) {
-      try {
-        const a = await tryGetActor();
-        if (a) {
-          const fetched = await a.getLiturgyWeek(fromId);
-          if (fetched) {
-            prevWeek = ensureAllDays(fetched);
-          }
-        }
-      } catch {
-        // Ignore backend errors
-      }
-    }
-
-    if (!prevWeek) {
-      // Nothing to copy from
-      setIsSaving(false);
-      return;
-    }
-
-    // 2. Build current week by copying schedule (without intencje)
-    const copied: LiturgyWeek = {
-      id: weekId,
-      weekStart: toIsoDate(start),
-      weekEnd: toIsoDate(end),
-      heroTitle: prevWeek.heroTitle,
-      heroSubtitle: prevWeek.heroSubtitle,
-      heroDescription: prevWeek.heroDescription,
-      days: prevWeek.days.map((d) => ({
-        dayIndex: d.dayIndex,
-        entries: d.entries.map((e) => ({
-          ...e,
-          // Clear intencje — only copy schedule structure
-          intention: "",
-        })),
-      })),
-    };
-
-    const full = ensureAllDays(copied);
-
-    // 3. Save locally
-    lsSaveWeek(full);
-    setWeek(full);
-
-    // 4. Try to sync to backend silently
-    void (async () => {
-      try {
-        const a = await tryGetActor();
-        if (a) {
-          await a.copyPreviousWeek(
-            fromId,
-            weekId,
-            toIsoDate(start),
-            toIsoDate(end),
-          );
-        }
-      } catch {
-        // Backend sync failed — data is safe in localStorage
-      }
-    })();
-
-    setIsSaving(false);
-  }, [tryGetActor, weekId]);
-
   const clearWeek = React.useCallback(async () => {
     if (!week) return;
 
+    // Explicitly use the current weekId to prevent cross-week contamination
     const cleared: LiturgyWeek = {
       ...week,
+      id: weekId,
       days: Array.from({ length: 7 }, (_, i) => ({
         dayIndex: BigInt(i),
         entries: [],
@@ -413,7 +357,7 @@ export function useLiturgy(): LiturgyState {
     };
 
     await saveWeek(cleared);
-  }, [week, saveWeek]);
+  }, [week, weekId, saveWeek]);
 
   const deleteWeek = React.useCallback(async () => {
     setIsSaving(true);
@@ -438,11 +382,46 @@ export function useLiturgy(): LiturgyState {
     setIsSaving(false);
   }, [tryGetActor, weekId]);
 
-  // Initial load — wait until actor finishes initialising.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
+  // FAST PATH: Load from localStorage immediately on mount (no actor needed).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  React.useEffect(() => {
+    const local = lsGetWeek(currentWeekId);
+    if (local) {
+      setWeek(ensureAllDays(local));
+      setIsLoading(false);
+    }
+    // If no local data, keep isLoading=true until background refresh completes
+  }, []);
+
+  // BACKGROUND REFRESH: When actor becomes ready, silently refresh from
+  // backend for the currently-displayed week (not always currentWeekId).
+  // Guard: only apply result if the user hasn't navigated to a different week
+  // while the fetch was in-flight.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — only watch isFetching
   React.useEffect(() => {
     if (!isFetching) {
-      loadWeek(currentWeekId);
+      void (async () => {
+        const idAtStart = weekIdRef.current;
+        try {
+          const a = await tryGetActor();
+          if (a) {
+            const fetched =
+              idAtStart === currentWeekId
+                ? await a.getCurrentLiturgyWeek()
+                : await a.getLiturgyWeek(idAtStart);
+            // Only update state if the user is still on the same week
+            if (fetched && weekIdRef.current === idAtStart) {
+              const result = ensureAllDays(fetched);
+              lsSaveWeek(result);
+              setWeek(result);
+            }
+          }
+        } catch {
+          // Backend unavailable — cached data remains visible
+        } finally {
+          if (weekIdRef.current === idAtStart) setIsLoading(false);
+        }
+      })();
     }
   }, [isFetching]);
 
@@ -454,7 +433,6 @@ export function useLiturgy(): LiturgyState {
     error,
     loadWeek,
     saveWeek,
-    copyFromPreviousWeek,
     clearWeek,
     deleteWeek,
   };
