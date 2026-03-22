@@ -1,5 +1,6 @@
 import {
   Check,
+  CircleDollarSign,
   Clock,
   Copy,
   Facebook,
@@ -9,9 +10,11 @@ import {
   Phone,
   Twitter,
   Youtube,
+  Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useState } from "react";
+import { PaymentMethodsGrid } from "../components/PaymentCards";
 import { KontaktSkeleton } from "../components/parish/PageSkeleton";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useSiteSettings } from "../hooks/useQueries";
@@ -26,6 +29,13 @@ interface ContactData {
   youtube: string;
   twitter: string;
   cmentarzUrl: string;
+  lightningAddress?: string;
+  lightningQrUrl?: string;
+  lightningDescription?: string;
+  lightningEnabled?: boolean;
+  usdcAddress?: string;
+  usdcQrUrl?: string;
+  usdcEnabled?: boolean;
 }
 
 const DEFAULT_CONTACT: ContactData = {
@@ -42,8 +52,6 @@ const DEFAULT_CONTACT: ContactData = {
 
 export function KontaktPage() {
   const { data: settings, isLoading } = useSiteSettings();
-  const [copied, setCopied] = useState(false);
-
   const contact: ContactData = React.useMemo(() => {
     if (settings?.contactData) {
       try {
@@ -58,14 +66,6 @@ export function KontaktPage() {
   if (isLoading && !settings) {
     return <KontaktSkeleton />;
   }
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(contact.bankAccount);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {}
-  };
 
   const items = [
     {
@@ -120,7 +120,7 @@ export function KontaktPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="font-display text-4xl md:text-5xl font-extralight text-foreground mb-4"
+            className="font-display text-5xl sm:text-6xl lg:text-7xl font-extralight text-foreground tracking-tight leading-none mb-4"
           >
             Kontakt
           </motion.h1>
@@ -128,7 +128,7 @@ export function KontaktPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
-            className="font-sans text-lg font-light text-foreground/70 leading-relaxed"
+            className="font-editorial text-lg sm:text-xl font-light text-foreground/70 leading-relaxed"
           >
             Jesteśmy dla Ciebie
           </motion.p>
@@ -165,42 +165,28 @@ export function KontaktPage() {
           ))}
         </div>
 
-        {/* Bank Account */}
-        {contact.bankAccount && (
+        {/* Payment methods */}
+        {(contact.bankAccount ||
+          contact.phone ||
+          contact.lightningEnabled ||
+          contact.usdcEnabled) && (
           <SectionReveal delay={450}>
-            <div
-              className="mt-8 bg-card rounded-xl p-8 border border-border"
-              data-ocid="kontakt.bankaccount.card"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <Globe className="w-4 h-4 text-green-600" />
-                </div>
-                <h2 className="font-sans text-xs uppercase tracking-[0.15em] text-muted-foreground">
-                  Numer konta bankowego
-                </h2>
-              </div>
-              <div className="flex flex-wrap items-center gap-4">
-                <p className="font-mono text-lg text-foreground tracking-wide flex-1">
-                  {contact.bankAccount}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 text-green-700 hover:bg-green-500/20 transition-colors font-sans text-sm font-light"
-                  data-ocid="kontakt.bankaccount.button"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4" /> Skopiowano!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" /> Kopiuj numer konta
-                    </>
-                  )}
-                </button>
-              </div>
+            <div className="mt-8">
+              <h2 className="font-sans text-xs uppercase tracking-[0.15em] text-muted-foreground text-center mb-6">
+                Metody płatności
+              </h2>
+              <PaymentMethodsGrid
+                bankAccount={contact.bankAccount}
+                blikPhone={contact.phone}
+                lightningAddress={contact.lightningAddress}
+                lightningQrUrl={contact.lightningQrUrl}
+                lightningDescription={contact.lightningDescription}
+                lightningEnabled={contact.lightningEnabled}
+                usdcAddress={contact.usdcAddress}
+                usdcQrUrl={contact.usdcQrUrl}
+                usdcEnabled={contact.usdcEnabled}
+                ocidPrefix="kontakt"
+              />
             </div>
           </SectionReveal>
         )}

@@ -18,6 +18,7 @@ const DEFAULT_NAV: NavItem[] = [
   { name: "Kontakt", path: "/kontakt", visible: true },
   { name: "Modlitwa", path: "/modlitwa", visible: true },
   { name: "Życie", path: "/zycie", visible: true },
+  { name: "Sklep", path: "/sklep", visible: true },
 ];
 
 export function Navigation() {

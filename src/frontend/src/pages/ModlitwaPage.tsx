@@ -1194,7 +1194,7 @@ export function ModlitwaPage() {
             <>
               <Star className="w-8 h-8 text-amber-400 mx-auto mb-6 opacity-70" />
               <h1
-                className="text-4xl md:text-6xl font-light text-white mb-4 tracking-wide"
+                className="font-display text-5xl sm:text-6xl lg:text-7xl font-extralight text-white tracking-tight leading-none mb-4"
                 style={{
                   fontFamily: "'Playfair Display', serif",
                   textShadow: "0 0 50px rgba(255,215,0,0.25)",
@@ -1202,10 +1202,10 @@ export function ModlitwaPage() {
               >
                 {config.heroTitle}
               </h1>
-              <p className="text-lg md:text-xl text-amber-200/70 mb-4 font-light tracking-wide">
+              <p className="font-editorial text-lg sm:text-xl font-light text-amber-200/70 leading-relaxed mb-4">
                 {config.heroSubtitle}
               </p>
-              <p className="text-sm md:text-base text-white/45 max-w-xl mx-auto leading-relaxed">
+              <p className="font-sans text-sm font-light text-white/50 leading-relaxed max-w-xl mx-auto">
                 {config.heroDescription}
               </p>
             </>

@@ -87,10 +87,83 @@ import {
   useUpdateNews,
   useUpdateSiteSettings,
 } from "../hooks/useQueries";
+import { useZycieImageUpload } from "../hooks/useZycieImageUpload";
 import { KancelariaTab } from "./AdminKancelariaTab";
 import { ModlitwaTab } from "./AdminModlitwaTab";
+import { AdminSklepTab } from "./AdminSklepTab";
 import { WspolnotyTab } from "./AdminWspolnotyTab";
 import { AdminZycieTab } from "./AdminZycieTab";
+
+// ============================================================
+// IMAGE FIELD (QR upload helper)
+// ============================================================
+
+function QrImageField({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+  label: string;
+}) {
+  const ref = React.useRef<HTMLInputElement>(null);
+  const { upload } = useZycieImageUpload();
+  const [uploading, setUploading] = React.useState(false);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const url = await upload(file);
+      onChange(url);
+    } catch {
+      toast.error("Nie udało się wgrać kodu QR");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2 sm:col-span-2">
+      <Label className="font-sans font-light">{label}</Label>
+      <button
+        type="button"
+        className="relative w-32 h-32 rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors overflow-hidden cursor-pointer text-left"
+        onClick={() => ref.current?.click()}
+      >
+        {value ? (
+          <img
+            src={value}
+            alt="QR podgląd"
+            className="w-full h-full object-contain"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+            <ImageIcon className="w-6 h-6 text-muted-foreground/30" />
+            <span className="font-sans text-xs text-muted-foreground/60 text-center px-2">
+              Kliknij, aby wgrać QR
+            </span>
+          </div>
+        )}
+        {uploading && (
+          <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
+            <Upload className="w-4 h-4 animate-bounce text-primary" />
+          </div>
+        )}
+      </button>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+        }}
+      />
+    </div>
+  );
+}
 
 // ============================================================
 // ACCESS GUARD
@@ -1362,6 +1435,7 @@ const DEFAULT_NAV = [
   { name: "Kontakt", path: "/kontakt", visible: true },
   { name: "Modlitwa", path: "/modlitwa", visible: true },
   { name: "Życie", path: "/zycie", visible: true },
+  { name: "Sklep", path: "/sklep", visible: true },
 ];
 
 function NavigationTab() {
@@ -1501,7 +1575,18 @@ function SettingsTab() {
     parishMotto: "",
     parishIconUrl: "",
     footerNavLinks: "[]",
+    lightningAddress: "",
+    lightningQrUrl: "",
+    lightningDescription: "",
+    lightningEnabled: false,
+    usdcAddress: "",
+    usdcQrUrl: "",
+    usdcEnabled: false,
   });
+  const [lightningAddrInput, setLightningAddrInput] = React.useState("");
+  const [lightningAddrConfirm, setLightningAddrConfirm] = React.useState("");
+  const [usdcAddrInput, setUsdcAddrInput] = React.useState("");
+  const [usdcAddrConfirm, setUsdcAddrConfirm] = React.useState("");
   const [aestheticMode, setAestheticMode] = useState("jordan");
   const [footerNavItems, setFooterNavItems] = useState<
     { name: string; path: string }[]
@@ -1527,8 +1612,19 @@ function SettingsTab() {
           parishMotto: "",
           parishIconUrl: "",
           footerNavLinks: "[]",
+          lightningAddress: "",
+          lightningQrUrl: "",
+          lightningDescription: "",
+          lightningEnabled: false,
+          usdcAddress: "",
+          usdcQrUrl: "",
+          usdcEnabled: false,
           ...parsed,
         });
+        setLightningAddrInput(parsed.lightningAddress || "");
+        setLightningAddrConfirm(parsed.lightningAddress || "");
+        setUsdcAddrInput(parsed.usdcAddress || "");
+        setUsdcAddrConfirm(parsed.usdcAddress || "");
         try {
           const navItems = JSON.parse(parsed.footerNavLinks || "[]");
           setFooterNavItems(navItems);
@@ -2006,6 +2102,165 @@ function SettingsTab() {
           </div>
         </div>
       </div>
+
+      {/* Bitcoin Lightning */}
+      <div className="space-y-4 pt-4 border-t border-border/40">
+        <h3 className="font-display text-base font-light text-foreground/70">
+          Bitcoin Lightning
+        </h3>
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={contact.lightningEnabled}
+            onCheckedChange={(v) =>
+              setContact((p) => ({ ...p, lightningEnabled: v }))
+            }
+            data-ocid="admin.settings.lightning.switch"
+          />
+          <Label className="font-sans font-light">
+            Włącz metodę Bitcoin Lightning
+          </Label>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Lightning Address</Label>
+            <Input
+              value={lightningAddrInput}
+              onChange={(e) => {
+                setLightningAddrInput(e.target.value);
+                if (
+                  !lightningAddrConfirm ||
+                  e.target.value === lightningAddrConfirm
+                ) {
+                  setContact((p) => ({
+                    ...p,
+                    lightningAddress: e.target.value,
+                  }));
+                }
+              }}
+              placeholder="parafia@wallet.com lub lnbc..."
+              className="font-sans font-mono"
+              data-ocid="admin.settings.lightning.input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-sans font-light">
+              Powtórz Lightning Address
+            </Label>
+            <Input
+              value={lightningAddrConfirm}
+              onChange={(e) => {
+                setLightningAddrConfirm(e.target.value);
+                if (e.target.value === lightningAddrInput) {
+                  setContact((p) => ({
+                    ...p,
+                    lightningAddress: lightningAddrInput,
+                  }));
+                }
+              }}
+              placeholder="Powtórz adres"
+              className="font-sans font-mono"
+              data-ocid="admin.settings.lightning_confirm.input"
+            />
+          </div>
+          {lightningAddrInput &&
+            lightningAddrConfirm &&
+            lightningAddrInput !== lightningAddrConfirm && (
+              <p className="text-sm text-destructive sm:col-span-2">
+                Adresy nie są zgodne
+              </p>
+            )}
+          <div className="space-y-2 sm:col-span-2">
+            <Label className="font-sans font-light">Opis (opcjonalny)</Label>
+            <Input
+              value={contact.lightningDescription}
+              onChange={(e) =>
+                setContact((p) => ({
+                  ...p,
+                  lightningDescription: e.target.value,
+                }))
+              }
+              placeholder="Możesz wesprzeć parafię przez sieć Bitcoin Lightning."
+              className="font-sans"
+              data-ocid="admin.settings.lightning_desc.input"
+            />
+          </div>
+          <QrImageField
+            label="Kod QR Bitcoin Lightning"
+            value={contact.lightningQrUrl}
+            onChange={(url) =>
+              setContact((p) => ({ ...p, lightningQrUrl: url }))
+            }
+          />
+        </div>
+      </div>
+
+      {/* USDC (Arbitrum) */}
+      <div className="space-y-4 pt-4 border-t border-border/40">
+        <h3 className="font-display text-base font-light text-foreground/70">
+          USDC (Arbitrum)
+        </h3>
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={contact.usdcEnabled}
+            onCheckedChange={(v) =>
+              setContact((p) => ({ ...p, usdcEnabled: v }))
+            }
+            data-ocid="admin.settings.usdc.switch"
+          />
+          <Label className="font-sans font-light">
+            Włącz metodę USDC (Arbitrum)
+          </Label>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="font-sans font-light">Adres portfela USDC</Label>
+            <Input
+              value={usdcAddrInput}
+              onChange={(e) => {
+                setUsdcAddrInput(e.target.value);
+                if (!usdcAddrConfirm || e.target.value === usdcAddrConfirm) {
+                  setContact((p) => ({ ...p, usdcAddress: e.target.value }));
+                }
+              }}
+              placeholder="0x..."
+              className="font-sans font-mono"
+              data-ocid="admin.settings.usdc.input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-sans font-light">
+              Powtórz adres portfela USDC
+            </Label>
+            <Input
+              value={usdcAddrConfirm}
+              onChange={(e) => {
+                setUsdcAddrConfirm(e.target.value);
+                if (e.target.value === usdcAddrInput) {
+                  setContact((p) => ({ ...p, usdcAddress: usdcAddrInput }));
+                }
+              }}
+              placeholder="Powtórz adres"
+              className="font-sans font-mono"
+              data-ocid="admin.settings.usdc_confirm.input"
+            />
+          </div>
+          {usdcAddrInput &&
+            usdcAddrConfirm &&
+            usdcAddrInput !== usdcAddrConfirm && (
+              <p className="text-sm text-destructive sm:col-span-2">
+                Adresy nie są zgodne
+              </p>
+            )}
+          <QrImageField
+            label="Kod QR USDC (Arbitrum)"
+            value={contact.usdcQrUrl}
+            onChange={(url) => setContact((p) => ({ ...p, usdcQrUrl: url }))}
+          />
+          <p className="font-sans text-xs text-amber-600 font-medium sm:col-span-2">
+            Wysyłaj tylko USDC przez sieć Arbitrum.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2416,6 +2671,7 @@ export function AdminPage() {
               { value: "kancelaria", label: "Kancelaria" },
               { value: "modlitwa", label: "Modlitwa" },
               { value: "zycie", label: "Życie" },
+              { value: "sklep", label: "Sklep" },
             ].map((tab) => (
               <TabsTrigger
                 key={tab.value}
@@ -2460,6 +2716,9 @@ export function AdminPage() {
           </TabsContent>
           <TabsContent value="zycie">
             <AdminZycieTab />
+          </TabsContent>
+          <TabsContent value="sklep">
+            <AdminSklepTab />
           </TabsContent>
         </Tabs>
       </div>

@@ -14,6 +14,7 @@ import { KancelariaPage } from "./pages/KancelariaPage";
 import { KontaktPage } from "./pages/KontaktPage";
 import { LiturgiaPage } from "./pages/LiturgiaPage";
 import { ModlitwaPage } from "./pages/ModlitwaPage";
+import { SklepPage } from "./pages/SklepPage";
 import { WspolnotyPage } from "./pages/WspolnotyPage";
 import { ZyciePage } from "./pages/ZyciePage";
 import { Route, RouterProvider, Routes } from "./router";
@@ -36,6 +37,7 @@ function AppLayout() {
           <Route path="/kontakt" element={<KontaktPage />} />
           <Route path="/modlitwa" element={<ModlitwaPage />} />
           <Route path="/zycie" element={<ZyciePage />} />
+          <Route path="/sklep" element={<SklepPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </div>

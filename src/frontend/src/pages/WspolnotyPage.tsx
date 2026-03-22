@@ -179,11 +179,11 @@ function WspolnotyHero({ meta }: { meta: WspolnotyMeta }) {
         <p className="font-sans text-xs uppercase tracking-[0.25em] text-muted-foreground">
           Parafia Żywa
         </p>
-        <h1 className="font-display text-5xl sm:text-6xl font-extralight text-foreground leading-none">
+        <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-extralight text-foreground tracking-tight leading-none">
           Wspólnoty
         </h1>
         <div className="w-12 h-px bg-primary/30 mx-auto" />
-        <p className="font-sans text-lg font-light text-muted-foreground leading-relaxed">
+        <p className="font-editorial text-lg sm:text-xl font-light text-foreground/70 leading-relaxed">
           {meta.heroSubtitle}
         </p>
         <p className="font-sans text-sm text-muted-foreground/70 leading-relaxed">

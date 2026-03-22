@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Check,
   ChevronRight,
+  CircleDollarSign,
   Clock,
   Copy,
   Facebook,
@@ -16,9 +17,11 @@ import {
   Twitter,
   X,
   Youtube,
+  Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import React, { useState } from "react";
+import { PaymentMethodsGrid } from "../components/PaymentCards";
 import { KancelariaSkeleton } from "../components/parish/PageSkeleton";
 import { SectionReveal } from "../components/parish/SectionReveal";
 import { useActor } from "../hooks/useActor";
@@ -435,31 +438,28 @@ export function KancelariaPage() {
   const isLoading = metaLoading && !meta && hoursLoading && !hours;
 
   const [selectedMatter, setSelectedMatter] = useState<Matter | null>(null);
-  const [bankCopied, setBankCopied] = useState(false);
-
   const siteContact = React.useMemo(() => {
     if (siteSettings?.contactData) {
       try {
         return JSON.parse(siteSettings.contactData) as {
           bankAccount?: string;
+          phone?: string;
           facebook?: string;
           youtube?: string;
           twitter?: string;
           cmentarzUrl?: string;
+          lightningAddress?: string;
+          lightningQrUrl?: string;
+          lightningDescription?: string;
+          lightningEnabled?: boolean;
+          usdcAddress?: string;
+          usdcQrUrl?: string;
+          usdcEnabled?: boolean;
         };
       } catch {}
     }
     return {};
   }, [siteSettings]);
-
-  const handleBankCopy = async () => {
-    if (!siteContact.bankAccount) return;
-    try {
-      await navigator.clipboard.writeText(siteContact.bankAccount);
-      setBankCopied(true);
-      setTimeout(() => setBankCopied(false), 2000);
-    } catch {}
-  };
 
   const socialLinks = [
     { icon: Globe, label: "Cmentarz Parafii", url: siteContact.cmentarzUrl },
@@ -509,7 +509,7 @@ export function KancelariaPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
-                className="font-display text-4xl md:text-5xl font-extralight text-foreground mb-4"
+                className="font-display text-5xl sm:text-6xl lg:text-7xl font-extralight text-foreground tracking-tight leading-none mb-4"
               >
                 {m.heroTitle}
               </motion.h1>
@@ -517,7 +517,7 @@ export function KancelariaPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.15 }}
-                className="font-sans text-lg font-light text-foreground/70 leading-relaxed mb-3"
+                className="font-editorial text-lg sm:text-xl font-light text-foreground/70 leading-relaxed mb-3"
               >
                 {m.heroSubtitle}
               </motion.p>
@@ -526,7 +526,7 @@ export function KancelariaPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.25 }}
-                  className="font-sans text-sm font-light text-foreground/55 leading-relaxed"
+                  className="font-sans text-sm font-light text-muted-foreground leading-relaxed"
                 >
                   {m.heroDescription}
                 </motion.p>
@@ -747,41 +747,26 @@ export function KancelariaPage() {
               </div>
             </div>
 
-            {/* Bank account */}
-            {siteContact.bankAccount && (
-              <div
-                className="mt-6 rounded-2xl border border-border bg-card p-6"
-                data-ocid="kancelaria.bankaccount.card"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
-                    <Globe className="w-4 h-4 text-green-600" />
-                  </div>
-                  <p className="font-sans text-xs uppercase tracking-widest text-muted-foreground">
-                    Numer konta bankowego
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <p className="font-mono text-base text-foreground tracking-wide flex-1">
-                    {siteContact.bankAccount}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleBankCopy}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 text-green-700 hover:bg-green-500/20 transition-colors font-sans text-sm font-light"
-                    data-ocid="kancelaria.bankaccount.button"
-                  >
-                    {bankCopied ? (
-                      <>
-                        <Check className="w-4 h-4" /> Skopiowano!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" /> Kopiuj numer konta
-                      </>
-                    )}
-                  </button>
-                </div>
+            {/* Payment methods */}
+            {(siteContact.bankAccount ||
+              siteContact.lightningEnabled ||
+              siteContact.usdcEnabled) && (
+              <div className="mt-6">
+                <p className="font-sans text-xs uppercase tracking-widest text-muted-foreground text-center mb-4">
+                  Metody płatności
+                </p>
+                <PaymentMethodsGrid
+                  bankAccount={siteContact.bankAccount}
+                  blikPhone={siteContact.phone}
+                  lightningAddress={siteContact.lightningAddress}
+                  lightningQrUrl={siteContact.lightningQrUrl}
+                  lightningDescription={siteContact.lightningDescription}
+                  lightningEnabled={siteContact.lightningEnabled}
+                  usdcAddress={siteContact.usdcAddress}
+                  usdcQrUrl={siteContact.usdcQrUrl}
+                  usdcEnabled={siteContact.usdcEnabled}
+                  ocidPrefix="kancelaria"
+                />
               </div>
             )}
 

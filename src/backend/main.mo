@@ -699,4 +699,57 @@ actor {
     // Public can view the configuration
     modlitwaConfig;
   };
+
+  // SKLEP - SHOP ORDERS
+
+  public type ShopOrder = {
+    id : Text;
+    productId : Text;
+    productName : Text;
+    productPrice : Text;
+    customerName : Text;
+    phone : Text;
+    email : Text;
+    address : Text;
+    postalCode : Text;
+    city : Text;
+    notes : Text;
+    deliveryType : Text; // "pickup" | "shipping"
+    paymentConfirmed : Bool;
+    status : Text; // "new" | "awaiting" | "paid" | "shipped"
+    trackingNumber : Text;
+    adminNotes : Text;
+    createdAt : Text;
+  };
+
+  var shopOrders : List.List<ShopOrder> = List.empty<ShopOrder>();
+
+  public shared func saveShopOrder(order : ShopOrder) : async () {
+    // Public - no auth required, anyone can submit an order
+    shopOrders.add(order);
+  };
+
+  public query ({ caller }) func getShopOrders() : async [ShopOrder] {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Only authenticated users can view shop orders");
+    };
+    shopOrders.toArray();
+  };
+
+  public shared ({ caller }) func updateShopOrder(id : Text, order : ShopOrder) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    let filtered = shopOrders.toArray().filter(func(o : ShopOrder) : Bool { o.id != id });
+    shopOrders := List.fromArray(filtered.concat([order]));
+  };
+
+  public shared ({ caller }) func deleteShopOrder(id : Text) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    let filtered = shopOrders.toArray().filter(func(o : ShopOrder) : Bool { o.id != id });
+    shopOrders := List.fromArray(filtered);
+  };
+
 };

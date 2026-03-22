@@ -106,16 +106,17 @@ interface AddMassDialogProps {
 
 function AddMassDialog({ open, onClose, onSave }: AddMassDialogProps) {
   const [time, setTime] = useState("08:00");
-  const [intention, setIntention] = useState("");
+  const [intentions, setIntentions] = useState<string[]>([""]);
 
   const handleSave = () => {
     if (!time.trim()) {
       toast.error("Podaj godzinę");
       return;
     }
-    onSave(time.trim(), intention.trim());
+    const filtered = intentions.filter((i) => i.trim());
+    onSave(time.trim(), filtered.join("\n"));
     setTime("08:00");
-    setIntention("");
+    setIntentions([""]);
     onClose();
   };
 
@@ -142,16 +143,51 @@ function AddMassDialog({ open, onClose, onSave }: AddMassDialogProps) {
 
           <div className="space-y-2">
             <Label className="font-sans font-light text-sm">
-              Intencja Mszy
+              Intencje Mszy
             </Label>
-            <Textarea
-              value={intention}
-              onChange={(e) => setIntention(e.target.value)}
-              placeholder="Np. Za spokój duszy Jana Kowalskiego..."
-              rows={3}
-              className="font-sans font-light resize-none"
-              data-ocid="liturgia.mass.intention.textarea"
-            />
+            <div className="space-y-2">
+              {intentions.map((intention, idx) => (
+                <div key={String(idx)} className="flex gap-2 items-start">
+                  <Textarea
+                    value={intention}
+                    onChange={(e) => {
+                      const updated = [...intentions];
+                      updated[idx] = e.target.value;
+                      setIntentions(updated);
+                    }}
+                    placeholder={
+                      idx === 0
+                        ? "Np. Za spokój duszy Jana Kowalskiego..."
+                        : `Intencja ${idx + 1}...`
+                    }
+                    rows={2}
+                    className="font-sans font-light resize-none flex-1"
+                    data-ocid={`liturgia.mass.intention.textarea.${idx}`}
+                  />
+                  {intentions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIntentions(intentions.filter((_, i) => i !== idx))
+                      }
+                      className="mt-1 w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                      aria-label="Usuń intencję"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIntentions([...intentions, ""])}
+              className="font-sans font-light text-sm text-muted-foreground hover:text-foreground mt-1"
+            >
+              + Dodaj kolejną intencję
+            </Button>
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -319,7 +355,6 @@ interface EntryRowProps {
 function EntryRow({ entry, index, isAdmin, onDelete }: EntryRowProps) {
   const isMass = entry.entryType === "msza";
   const typeLabel = isMass ? "Msza Święta" : getServiceLabel(entry.serviceType);
-  const detail = isMass ? entry.intention : entry.description;
 
   return (
     <motion.div
@@ -341,11 +376,23 @@ function EntryRow({ entry, index, isAdmin, onDelete }: EntryRowProps) {
         <p className="font-sans text-sm font-medium text-foreground/80 leading-snug">
           {typeLabel}
         </p>
-        {detail && (
-          <p className="font-sans text-base font-light text-muted-foreground leading-relaxed mt-1">
-            {detail}
-          </p>
-        )}
+        {isMass
+          ? entry.intention
+              .split("\n")
+              .filter(Boolean)
+              .map((line, i) => (
+                <p
+                  key={String(i)}
+                  className="font-sans text-lg font-light text-muted-foreground leading-relaxed mt-1"
+                >
+                  {line}
+                </p>
+              ))
+          : entry.description && (
+              <p className="font-sans text-lg font-light text-muted-foreground leading-relaxed mt-1">
+                {entry.description}
+              </p>
+            )}
         {isMass &&
           (() => {
             const ministers = parseMinistersFromDescription(entry.description);
@@ -721,7 +768,17 @@ function generatePDF(week: LiturgyWeek): void {
             <div class="entry-time">${entry.time}</div>
             <div class="entry-content">
               <div class="entry-type">${typeLabel}</div>
-              ${detail ? `<div class="entry-detail">${detail}</div>` : ""}
+              ${
+                isMass
+                  ? entry.intention
+                      .split("\n")
+                      .filter(Boolean)
+                      .map((line) => `<div class="entry-detail">${line}</div>`)
+                      .join("")
+                  : detail
+                    ? `<div class="entry-detail">${detail}</div>`
+                    : ""
+              }
               ${pdfMinisters.lectors.length > 0 ? `<div class="entry-ministers">Lektor: ${pdfMinisters.lectors.join(", ")}</div>` : ""}
               ${pdfMinisters.psalmists.length > 0 ? `<div class="entry-ministers">Psalmista: ${pdfMinisters.psalmists.join(", ")}</div>` : ""}
             </div>
@@ -859,10 +916,10 @@ function generatePDF(week: LiturgyWeek): void {
     }
 
     .entry-detail {
-      font-size: 9.5pt;
-      font-style: italic;
-      color: #7a6f65;
-      line-height: 1.4;
+      font-size: 12pt;
+      color: #4a413a;
+      line-height: 1.5;
+      margin-top: 1pt;
     }
 
     .footer-content {

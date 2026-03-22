@@ -49,7 +49,7 @@ export function AktualnosociPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="font-display text-4xl md:text-5xl font-extralight text-foreground mb-4"
+            className="font-display text-5xl sm:text-6xl lg:text-7xl font-extralight text-foreground tracking-tight leading-none mb-4"
           >
             Aktualności
           </motion.h1>
@@ -57,7 +57,7 @@ export function AktualnosociPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
-            className="font-sans text-lg font-light text-foreground/70 leading-relaxed"
+            className="font-editorial text-lg sm:text-xl font-light text-foreground/70 leading-relaxed"
           >
             Bieżące informacje z życia parafii
           </motion.p>

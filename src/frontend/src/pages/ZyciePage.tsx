@@ -243,11 +243,11 @@ export function ZyciePage() {
             <p className="font-sans text-xs tracking-[0.25em] uppercase text-primary/70 mb-4">
               Parafia św. Jana Chrzciciela
             </p>
-            <h1 className="font-display text-6xl md:text-7xl font-bold text-foreground mb-5 tracking-tight">
+            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-extralight text-foreground tracking-tight leading-none mb-5">
               {heroTexts.title}
             </h1>
             <div className="w-12 h-px bg-primary/40 mx-auto mb-6" />
-            <p className="font-display text-xl md:text-2xl font-light text-foreground/80 mb-4 tracking-wide">
+            <p className="font-editorial text-lg sm:text-xl font-light text-foreground/70 leading-relaxed mb-4">
               {heroTexts.subtitle}
             </p>
             <p className="font-sans text-base text-muted-foreground leading-relaxed max-w-lg mx-auto">
