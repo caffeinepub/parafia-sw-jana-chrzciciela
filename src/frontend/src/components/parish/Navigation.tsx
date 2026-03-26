@@ -72,7 +72,7 @@ export function Navigation() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
-          ? "bg-card/90 backdrop-blur-md border-b border-border shadow-sm"
+          ? "bg-background border-b border-border shadow-sm"
           : "bg-transparent"
       }`}
       style={{ height: "var(--nav-height, 72px)" }}
@@ -113,7 +113,6 @@ export function Navigation() {
             .filter((item) => item.visible)
             .map((item) => {
               const isActive = location.pathname === item.path;
-              // Use path-derived marker (strip leading slash)
               const ocid = `nav.${item.path.replace("/", "") || "home"}.link`;
               return (
                 <Link
@@ -163,9 +162,9 @@ export function Navigation() {
         </div>
       </nav>
 
-      {/* Mobile menu */}
+      {/* Mobile menu - fully opaque to prevent bleed-through */}
       {mobileOpen && (
-        <div className="lg:hidden absolute top-full left-0 right-0 bg-card/95 backdrop-blur-md border-b border-border shadow-md py-4 animate-fade-in">
+        <div className="lg:hidden absolute top-full left-0 right-0 bg-background border-b border-border shadow-lg py-4 animate-fade-in">
           {navItems
             .filter((item) => item.visible)
             .map((item) => {

@@ -1,4 +1,5 @@
 import React from "react";
+import { toast } from "sonner";
 import type { LiturgyWeek } from "../backend";
 import { useActor } from "./useActor";
 
@@ -334,7 +335,9 @@ export function useLiturgy(): LiturgyState {
             await a.saveLiturgyWeek(full);
           }
         } catch {
-          // Backend save failed — data is safe in localStorage
+          toast.warning(
+            "Grafik zapisany lokalnie. Synchronizacja z backendem nie powiodła się — spróbuj zapisać ponownie.",
+          );
         }
       })();
 

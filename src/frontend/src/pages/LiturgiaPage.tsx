@@ -34,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { LiturgiaSkeleton } from "../components/parish/PageSkeleton";
 
 import type { LiturgyDay, LiturgyEntry, LiturgyWeek } from "../backend";
+import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   adjacentWeekId,
@@ -45,6 +46,7 @@ import {
 import {
   type MinisterRegistration,
   getRegistrations,
+  loadRegistrationsFromBackend,
   parseMinistersFromDescription,
   saveRegistrations,
   serializeMinistersToDescription,
@@ -1226,6 +1228,15 @@ function MinisterRegistrationForm({
 export function LiturgiaPage() {
   const { identity } = useInternetIdentity();
   const isAdmin = !!identity;
+
+  const { actor } = useActor();
+
+  // Load minister registrations from backend so public visitors see approved ministers
+  React.useEffect(() => {
+    if (!actor) return;
+    void loadRegistrationsFromBackend(actor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actor]);
 
   const { week, weekId, isLoading, isSaving, loadWeek, saveWeek, clearWeek } =
     useLiturgy();

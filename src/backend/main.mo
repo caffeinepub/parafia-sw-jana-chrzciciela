@@ -651,9 +651,10 @@ actor {
     prayerStars.toArray();
   };
 
+  // FIX #1: was AccessControl.hasPermission which always trapped -- replaced with isAuthenticated
   public shared ({ caller }) func deletePrayerStar(id : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete prayer stars");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
     let filteredArray = prayerStars.toArray().filter(
       func(star) { star.id != id }
@@ -677,9 +678,10 @@ actor {
     massIntentions.toArray();
   };
 
+  // FIX #1: was AccessControl.hasPermission which always trapped -- replaced with isAuthenticated
   public shared ({ caller }) func deleteMassIntention(id : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete mass intentions");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
     let filteredArray = massIntentions.toArray().filter(
       func(intention) { intention.id != id }
@@ -687,10 +689,10 @@ actor {
     massIntentions := List.fromArray(filteredArray);
   };
 
-  // Modlitwa Config
+  // FIX #1: was AccessControl.hasPermission which always trapped -- replaced with isAuthenticated
   public shared ({ caller }) func saveModlitwaConfig(config : ModlitwaConfig) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update prayer section configuration");
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
     };
     modlitwaConfig := ?config;
   };

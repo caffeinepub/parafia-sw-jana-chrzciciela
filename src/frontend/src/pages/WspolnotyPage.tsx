@@ -104,7 +104,7 @@ export function useWspolnotyMeta() {
       }
     },
     enabled: !!actor && !isFetching,
-    staleTime: 30000,
+    staleTime: 300_000,
   });
 }
 
@@ -147,7 +147,7 @@ export function useAllCommunities() {
       }
     },
     enabled: !!actor && !isFetching,
-    staleTime: 30_000,
+    staleTime: 300_000,
     placeholderData: getLocalData,
   });
 }

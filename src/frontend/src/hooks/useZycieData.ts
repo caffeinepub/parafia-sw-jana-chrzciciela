@@ -61,19 +61,16 @@ export function useZycieData() {
         const block = await actor.getContentBlock(ZYCIE_KEY);
         if (block?.content) {
           const data = parseZycieData(block.content);
-          // Cache in localStorage for instant subsequent loads
           localStorage.setItem(LS_KEY, block.content);
           return data;
         }
       } catch (e) {
         console.warn("Failed to load zycie_data from backend:", e);
       }
-      // Fall back to localStorage (migration / offline)
       return getLocalData();
     },
     enabled: !!actor && !isFetching,
-    staleTime: 60_000,
-    // Show localStorage data instantly while backend loads
+    staleTime: 300_000,
     placeholderData: getLocalData,
   });
 
@@ -81,11 +78,9 @@ export function useZycieData() {
     async (data: ZycieData) => {
       if (!actor) throw new Error("Actor not available");
       const json = JSON.stringify(data);
-      // Optimistic update
       queryClient.setQueryData(["zycieData"], data);
       localStorage.setItem(LS_KEY, json);
       window.dispatchEvent(new Event("storage"));
-      // Persist to backend
       await actor.updateContentBlock(ZYCIE_KEY, json);
     },
     [actor, queryClient],

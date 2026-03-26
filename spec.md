@@ -2,27 +2,39 @@
 
 ## Current State
 
-Aplikacja posiada mechanizm cache (localStorage) dla niektórych zakładek, ale większość stron czeka na inicjalizację aktora ICP przed załadowaniem jakichkolwiek danych. Powoduje to białe ekrany lub pulsujące spinnery przy pierwszym wejściu i przy nawigacji między zakładkami. Skeleton screens istnieją tylko w niektórych sekcjach strony głównej (Aktualności, Galeria, Wspólnoty), ale brak ich na stronach podrzędnych.
+Audyt diagnostyczny v77 ujawnił 10 problemów: 2 krytyczne, 3 poważne, 5 mniejszych. Backend zawiera 3 funkcje które zawsze trapują (AccessControl). Frontend ma lektorów/psalmistów wyłącznie w localStorage, grafik liturgii localStorage-primary, zamówienia sklepu z ryzykiem cichej utraty, AdminModlitwaTab czytający liturgię z localStorage zamiast backendu.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Skeleton screen components dla każdej głównej zakładki: Aktualności, Liturgia, Wspólnoty, Kancelaria, Kontakt, Modlitwa, Życie, Galeria
-- Centralny hook `useAppPreload` w App.tsx który przy starcie aplikacji (gdy aktor jest gotowy) wykonuje jedno zbiorcze zapytanie do backendu pobierając dane dla wszystkich zakładek i zapisując je do React Query cache
-- Skeleton screens muszą wizualnie odzwierciedlać kształt docelowej treści (hero placeholder, karty, siatki) -- nie mogą być prostymi szarymi blokami
+- Sync lektorów/psalmistów do backendu przez content block `minister_registrations`
+- Migracja lektorów z localStorage → backend przy pierwszym załadowaniu
+- Toast błędu gdy backend save grafiku Liturgii się nie powiedzie
+- Blokada zamówienia Sklepu jeśli aktor nie jest gotowy (toast z komunikatem)
+- Ładowanie tygodni liturgicznych z backendu w AdminModlitwaTab
 
 ### Modify
-- Wszystkie strony (LiturgiaPage, AktualnosociPage, WspolnotyPage, KancelariaPage, KontaktPage, ModlitwaPage, ZyciePage, GaleriaPage) -- dodać skeleton loading state zamiast białego ekranu lub prostego spinnera
-- useQueries.ts -- zwiększyć staleTime dla kluczowych zapytań do 5 minut (300_000ms) aby dane nie były odświeżane przy każdej nawigacji
-- HomePage -- już ma skeleton screens w sekcjach, zachować bez zmian
+- `main.mo`: `deletePrayerStar`, `deleteMassIntention`, `saveModlitwaConfig` — zamień `AccessControl.hasPermission(...)` na `isAuthenticated(caller)`
+- `useMinisterRegistrations.ts`: dodaj async backend sync (content block)
+- `useLiturgy.ts`: `saveWeek` pokazuje toast gdy backend save failure (nie milczy)
+- `useSklepData.ts`: `saveOrder` rzuca jeśli aktor nie jest dostępny
+- `AdminModlitwaTab.tsx`: `loadAllLiturgyWeeks` → pobierz z backendu przez `actor.listLiturgyWeeks()`
+- `Navigation.tsx`: linia 75 `bg-card/90` → `bg-background` (pasek nav przy scrollu)
+- `KancelariaPage.tsx`: staleTime `60_000` → `300_000`
+- `WspolnotyPage.tsx`: staleTime `30_000` → `300_000`
 
 ### Remove
-- Nic nie usuwać
+- Martwy hook `useIsCallerAdmin` z `useQueries.ts` (nikt go nie używa)
 
 ## Implementation Plan
 
-1. Stworzyć komponent `PageSkeleton` w `src/frontend/src/components/parish/PageSkeleton.tsx` z wariantami dla każdego typu strony (hero+cards, hero+grid, hero+list)
-2. Stworzyć hook `useAppPreload` w `src/frontend/src/hooks/useAppPreload.ts` który przy gotowości aktora wywołuje wszystkie główne query równolegle przez Promise.all, populując React Query cache
-3. Dodać wywołanie `useAppPreload` w App.tsx (lub w AppLayout) -- jeden raz przy starcie aplikacji
-4. Dodać skeleton loading state do: AktualnosociPage, LiturgiaPage, WspolnotyPage, KancelariaPage, KontaktPage, ModlitwaPage, ZyciePage, GaleriaPage
-5. Zwiększyć staleTime w useQueries.ts dla: publicNews, galleryAlbums, homeSections, siteSettings, contentBlocks
+1. Fix backend main.mo: replace AccessControl.hasPermission → isAuthenticated (3 miejsca)
+2. useMinisterRegistrations.ts: dodaj `syncRegistrationsToBackend(actor, regs)` i `loadRegistrationsFromBackend(actor)` helper functions
+3. AdminLiturgiaTab.tsx: po saveRegistrations call syncRegistrationsToBackend; na mount load from backend
+4. LiturgiaPage.tsx: na mount load registrations from backend i merge z localStorage
+5. useLiturgy.ts: w saveWeek await backend save, on failure toast "Błąd zapisu grafiku do backendu" ale zachowaj dane w localStorage
+6. useSklepData.ts saveOrder: if (!actor) throw Error z polskim komunikatem; await backend przed update localStorage
+7. AdminModlitwaTab.tsx: na mount load `actor.listLiturgyWeeks()`, convert to Record<string, LiturgyWeek>, use as state
+8. Navigation.tsx: bg-background fix
+9. KancelariaPage/WspolnotyPage: staleTime 300_000
+10. useQueries.ts: usuń useIsCallerAdmin

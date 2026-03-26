@@ -440,6 +440,25 @@ function MassIntentionsTab() {
     setLiturgyWeeks(loadAllLiturgyWeeks());
   }, []);
 
+  // Load liturgy weeks from backend (authoritative source)
+  useEffect(() => {
+    if (!actor) return;
+    void actor
+      .listLiturgyWeeks()
+      .then((weeks) => {
+        if (!weeks || weeks.length === 0) return;
+        const map: Record<string, LiturgyWeek> = {};
+        for (const w of weeks) {
+          map[w.id] = w;
+          saveLiturgyWeekToLS(w);
+        }
+        setLiturgyWeeks(map);
+      })
+      .catch(() => {
+        /* fallback to localStorage already shown */
+      });
+  }, [actor]);
+
   // Load from backend on mount
   useEffect(() => {
     if (!actor) return;

@@ -119,7 +119,7 @@ export function useSklepProducts() {
       return getLocalProducts();
     },
     enabled: !!actor && !isFetching,
-    staleTime: 60_000,
+    staleTime: 300_000,
     placeholderData: getLocalProducts,
   });
 
@@ -162,7 +162,7 @@ export function useSklepConfig() {
       return getLocalConfig();
     },
     enabled: !!actor && !isFetching,
-    staleTime: 60_000,
+    staleTime: 300_000,
     placeholderData: getLocalConfig,
   });
 
@@ -205,7 +205,7 @@ export function useShopOrders() {
       return getLocalOrders();
     },
     enabled: !!actor && !isFetching,
-    staleTime: 30_000,
+    staleTime: 120_000,
     placeholderData: getLocalOrders,
   });
 
@@ -222,19 +222,16 @@ export function useShopOrders() {
 
   const saveOrder = useCallback(
     async (order: ShopOrder) => {
+      if (!actor) {
+        throw new Error(
+          "Aplikacja nie jest jeszcze gotowa. Odczekaj chwilę i spróbuj ponownie.",
+        );
+      }
       const current = getLocalOrders();
       const updated = [order, ...current];
-      // Optimistic update in local cache
       queryClient.setQueryData(["shopOrders"], updated);
       localStorage.setItem(LS_ORDERS, JSON.stringify(updated));
-      // Best-effort backend save (public, no auth)
-      if (actor) {
-        try {
-          await actor.updateContentBlock(ORDERS_KEY, JSON.stringify(updated));
-        } catch (e) {
-          console.warn("Failed to persist order to backend:", e);
-        }
-      }
+      await actor.updateContentBlock(ORDERS_KEY, JSON.stringify(updated));
     },
     [actor, queryClient],
   );

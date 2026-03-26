@@ -230,7 +230,7 @@ export function useKancelariaMeta() {
       }
     },
     enabled: !!actor && !isFetching,
-    staleTime: 60_000,
+    staleTime: 300_000,
     placeholderData: getLocalData,
   });
 }
@@ -270,7 +270,7 @@ export function useKancelariaHours() {
       }
     },
     enabled: !!actor && !isFetching,
-    staleTime: 60_000,
+    staleTime: 300_000,
     placeholderData: getLocalData,
   });
 }
@@ -314,7 +314,7 @@ export function useKancelariaMatters() {
       }
     },
     enabled: !!actor && !isFetching,
-    staleTime: 60_000,
+    staleTime: 300_000,
     placeholderData: getLocalData,
   });
 }
