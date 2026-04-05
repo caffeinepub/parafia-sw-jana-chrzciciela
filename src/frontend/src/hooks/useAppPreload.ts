@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import React from "react";
 import { useActor } from "./useActor";
+import { ensureAllDays, getWeekId, lsSaveWeek } from "./useLiturgy";
 
 // Keys used by KancelariaPage
 const KANCELARIA_META_KEY = "kancelaria_meta";
@@ -69,6 +70,19 @@ export function useAppPreload() {
         .getAllContentBlocks()
         .then((data) => {
           queryClient.setQueryData(["contentBlocks"], data);
+        })
+        .catch(() => {}),
+
+      // ── Liturgia ──────────────────────────────────────────
+      // Preload bieżącego tygodnia -- zakładka otworzy się natychmiast
+      actor
+        .getLiturgyWeek(getWeekId(new Date()))
+        .then((week) => {
+          if (week && week.id === getWeekId(new Date())) {
+            const full = ensureAllDays(week);
+            lsSaveWeek(full);
+            queryClient.setQueryData(["liturgyWeek", full.id], full);
+          }
         })
         .catch(() => {}),
 
