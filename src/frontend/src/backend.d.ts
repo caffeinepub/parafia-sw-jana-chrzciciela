@@ -205,6 +205,7 @@ export interface backendInterface {
     removePhoto(albumId: string, photoId: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveLiturgyWeek(week: LiturgyWeek): Promise<void>;
+    setCurrentLiturgyWeekId(weekId: string): Promise<void>;
     saveMassIntention(intention: MassIntention): Promise<void>;
     saveModlitwaConfig(config: ModlitwaConfig): Promise<void>;
     savePrayerStar(star: PrayerStar): Promise<void>;

@@ -253,6 +253,10 @@ export function useLiturgy(): LiturgyState {
     weekIdRef.current = weekId;
   }, [weekId]);
 
+  // Track whether we've already fetched from backend for a given weekId.
+  // Prevents redundant backend calls when isFetching toggles multiple times.
+  const hasFetchedRef = React.useRef<string | null>(null);
+
   // Initialize isLoading based on whether localStorage already has data.
   // If cache exists, show it immediately (no skeleton).
   const [isLoading, setIsLoading] = React.useState(
@@ -278,6 +282,8 @@ export function useLiturgy(): LiturgyState {
       setError(null);
       setWeekId(id);
       weekIdRef.current = id;
+      // Reset fetch guard so new weekId will trigger a fresh backend fetch
+      hasFetchedRef.current = null;
 
       // 1. Clear stale data immediately so the previous week's entries
       //    don't flash while the new week is loading.
@@ -290,20 +296,21 @@ export function useLiturgy(): LiturgyState {
         setIsLoading(true); // show skeleton only if nothing in cache
       }
 
-      // 2. Refresh from backend silently in background
+      // 2. Refresh from backend silently in background.
+      //    Always use getLiturgyWeek(id) — never getCurrentLiturgyWeek()
+      //    because that returns whatever was last saved, not the calendar week.
       void (async () => {
         try {
           const a = await tryGetActor();
           if (a) {
-            const fetched =
-              id === currentWeekId
-                ? await a.getCurrentLiturgyWeek()
-                : await a.getLiturgyWeek(id);
-            // Only apply result if the user hasn't navigated away
-            if (fetched && weekIdRef.current === id) {
+            const fetched = await a.getLiturgyWeek(id);
+            // Safety check: only apply if user hasn't navigated away
+            // AND the backend returned exactly the week we requested
+            if (fetched && weekIdRef.current === id && fetched.id === id) {
               const backendResult = ensureAllDays(fetched);
               lsSaveWeek(backendResult);
               setWeek(backendResult);
+              hasFetchedRef.current = id;
             }
           }
         } catch {
@@ -313,7 +320,7 @@ export function useLiturgy(): LiturgyState {
         }
       })();
     },
-    [tryGetActor, currentWeekId],
+    [tryGetActor],
   );
 
   const saveWeek = React.useCallback(
@@ -333,6 +340,11 @@ export function useLiturgy(): LiturgyState {
           const a = await tryGetActor();
           if (a) {
             await a.saveLiturgyWeek(full);
+            // Only update the backend "current week pointer" when saving
+            // the actual calendar-current week, not historical weeks.
+            if (full.id === currentWeekId) {
+              await a.setCurrentLiturgyWeekId(full.id);
+            }
           }
         } catch {
           toast.warning(
@@ -343,7 +355,7 @@ export function useLiturgy(): LiturgyState {
 
       setIsSaving(false);
     },
-    [tryGetActor],
+    [tryGetActor, currentWeekId],
   );
 
   const clearWeek = React.useCallback(async () => {
@@ -397,26 +409,33 @@ export function useLiturgy(): LiturgyState {
   }, []);
 
   // BACKGROUND REFRESH: When actor becomes ready, silently refresh from
-  // backend for the currently-displayed week (not always currentWeekId).
+  // backend for the currently-displayed week.
   // Guard: only apply result if the user hasn't navigated to a different week
-  // while the fetch was in-flight.
+  // while the fetch was in-flight. Always use getLiturgyWeek(id) — never
+  // getCurrentLiturgyWeek() — to avoid cross-week contamination.
+  // hasFetchedRef prevents redundant fetches when isFetching toggles.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — only watch isFetching
   React.useEffect(() => {
     if (!isFetching) {
+      const idAtStart = weekIdRef.current;
+      // Skip if we already successfully fetched this week
+      if (hasFetchedRef.current === idAtStart) return;
       void (async () => {
-        const idAtStart = weekIdRef.current;
         try {
           const a = await tryGetActor();
           if (a) {
-            const fetched =
-              idAtStart === currentWeekId
-                ? await a.getCurrentLiturgyWeek()
-                : await a.getLiturgyWeek(idAtStart);
-            // Only update state if the user is still on the same week
-            if (fetched && weekIdRef.current === idAtStart) {
+            const fetched = await a.getLiturgyWeek(idAtStart);
+            // Only update state if user is still on the same week
+            // AND the backend returned exactly the week we requested
+            if (
+              fetched &&
+              weekIdRef.current === idAtStart &&
+              fetched.id === idAtStart
+            ) {
               const result = ensureAllDays(fetched);
               lsSaveWeek(result);
               setWeek(result);
+              hasFetchedRef.current = idAtStart;
             }
           }
         } catch {

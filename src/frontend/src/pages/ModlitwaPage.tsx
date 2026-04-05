@@ -895,11 +895,16 @@ export function ModlitwaPage() {
       // ignore localStorage errors
     }
 
-    // Also try backend for authoritative data
+    // Also try backend for authoritative data.
+    // Always use getLiturgyWeek(currentWeekId) — never getCurrentLiturgyWeek()
+    // which returned whatever week was last saved, causing cross-week contamination.
     actor
-      ?.getCurrentLiturgyWeek()
+      ?.getLiturgyWeek(currentWeekId)
       .then((week) => {
         if (!week) return;
+        // Safety check: only display intentions if the backend returned
+        // exactly the current calendar week — not a stale or historical week.
+        if (week.id !== currentWeekId) return;
         const days = week.days.map((d) => ({
           dayIndex: Number(d.dayIndex),
           entries: d.entries.map((e) => ({

@@ -385,13 +385,13 @@ function EntryRow({ entry, index, isAdmin, onDelete }: EntryRowProps) {
               .map((line, i) => (
                 <p
                   key={String(i)}
-                  className="font-sans text-lg font-light text-muted-foreground leading-relaxed mt-1"
+                  className="font-sans text-2xl font-light text-muted-foreground leading-relaxed mt-1"
                 >
                   {line}
                 </p>
               ))
           : entry.description && (
-              <p className="font-sans text-lg font-light text-muted-foreground leading-relaxed mt-1">
+              <p className="font-sans text-2xl font-light text-muted-foreground leading-relaxed mt-1">
                 {entry.description}
               </p>
             )}
@@ -788,9 +788,19 @@ function generatePDF(week: LiturgyWeek): void {
         })
         .join("");
 
+      // Compute full date for this day from weekStart + dayIndex
+      const wsDate = new Date(`${week.weekStart}T00:00:00`);
+      const dayDateFull = new Date(
+        wsDate.getTime() + Number(day.dayIndex) * 86400000,
+      );
+      const dd = String(dayDateFull.getDate()).padStart(2, "0");
+      const mm = String(dayDateFull.getMonth() + 1).padStart(2, "0");
+      const yyyy = dayDateFull.getFullYear();
+      const dayDateFormatted = `${dd}.${mm}.${yyyy}`;
+
       return `
       <div class="day-block">
-        <div class="day-name">${DAY_NAMES[Number(day.dayIndex)].toUpperCase()}</div>
+        <div class="day-name">${DAY_NAMES[Number(day.dayIndex)].toUpperCase()} — ${dayDateFormatted}</div>
         <hr class="day-line" />
         <div class="entries">${entriesHtml}</div>
       </div>`;
@@ -918,7 +928,7 @@ function generatePDF(week: LiturgyWeek): void {
     }
 
     .entry-detail {
-      font-size: 12pt;
+      font-size: 16pt;
       color: #4a413a;
       line-height: 1.5;
       margin-top: 1pt;

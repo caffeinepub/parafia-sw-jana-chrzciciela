@@ -521,7 +521,18 @@ actor {
       Runtime.trap("Unauthorized: Authentication required");
     };
     liturgyWeeks.add(week.id, week);
-    currentLiturgyWeekId := ?week.id;
+    // NOTE: We intentionally do NOT update currentLiturgyWeekId here.
+    // currentLiturgyWeekId is only set by setCurrentWeekId(), which the
+    // frontend calls exclusively for the true calendar current week.
+  };
+
+  // Called by frontend to mark which week is the "current" week.
+  // Must be called with the ISO week ID of today's actual calendar week.
+  public shared ({ caller }) func setCurrentLiturgyWeekId(weekId : Text) : async () {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    currentLiturgyWeekId := ?weekId;
   };
 
   func clearWeekEntries(entries : [LiturgyEntry]) : [LiturgyEntry] {

@@ -219,6 +219,7 @@ export interface _SERVICE {
   'removePhoto' : ActorMethod<[string, string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveLiturgyWeek' : ActorMethod<[LiturgyWeek], undefined>,
+  'setCurrentLiturgyWeekId' : ActorMethod<[string], undefined>,
   'saveMassIntention' : ActorMethod<[MassIntention], undefined>,
   'saveModlitwaConfig' : ActorMethod<[ModlitwaConfig], undefined>,
   'savePrayerStar' : ActorMethod<[PrayerStar], undefined>,
