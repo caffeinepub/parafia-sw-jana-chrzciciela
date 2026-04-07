@@ -134,6 +134,25 @@ export interface PrayerStar {
   'prayCount' : bigint,
   'intention' : [] | [string],
 }
+export interface ShopOrder {
+  'id' : string,
+  'customerName' : string,
+  'status' : string,
+  'trackingNumber' : string,
+  'paymentConfirmed' : boolean,
+  'city' : string,
+  'postalCode' : string,
+  'createdAt' : string,
+  'productId' : string,
+  'productName' : string,
+  'deliveryType' : string,
+  'email' : string,
+  'address' : string,
+  'notes' : string,
+  'phone' : string,
+  'adminNotes' : string,
+  'productPrice' : string,
+}
 export interface SiteSettings {
   'contactData' : string,
   'navigation' : string,
@@ -144,34 +163,37 @@ export interface UserProfile { 'name' : string, 'role' : [] | [AppUserRole] }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
-export interface _CaffeineStorageCreateCertificateResult {
+export interface _ImmutableObjectStorageCreateCertificateResult {
   'method' : string,
   'blob_hash' : string,
 }
-export interface _CaffeineStorageRefillInformation {
+export interface _ImmutableObjectStorageRefillInformation {
   'proposed_top_up_amount' : [] | [bigint],
 }
-export interface _CaffeineStorageRefillResult {
+export interface _ImmutableObjectStorageRefillResult {
   'success' : [] | [boolean],
   'topped_up_amount' : [] | [bigint],
 }
 export interface _SERVICE {
-  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
-  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
-  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
+  '_immutableObjectStorageBlobsAreLive' : ActorMethod<
+    [Array<Uint8Array>],
+    Array<boolean>
+  >,
+  '_immutableObjectStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
+  '_immutableObjectStorageConfirmBlobDeletion' : ActorMethod<
     [Array<Uint8Array>],
     undefined
   >,
-  '_caffeineStorageCreateCertificate' : ActorMethod<
+  '_immutableObjectStorageCreateCertificate' : ActorMethod<
     [string],
-    _CaffeineStorageCreateCertificateResult
+    _ImmutableObjectStorageCreateCertificateResult
   >,
-  '_caffeineStorageRefillCashier' : ActorMethod<
-    [[] | [_CaffeineStorageRefillInformation]],
-    _CaffeineStorageRefillResult
+  '_immutableObjectStorageRefillCashier' : ActorMethod<
+    [[] | [_ImmutableObjectStorageRefillInformation]],
+    _ImmutableObjectStorageRefillResult
   >,
-  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
-  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  '_immutableObjectStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
+  '_initializeAccessControl' : ActorMethod<[], undefined>,
   'addCommunityPhoto' : ActorMethod<[string, ExternalBlob], undefined>,
   'addPhoto' : ActorMethod<[string, GalleryPhoto], undefined>,
   'assignAppRole' : ActorMethod<[Principal, AppUserRole], undefined>,
@@ -188,6 +210,7 @@ export interface _SERVICE {
   'deleteMassIntention' : ActorMethod<[string], undefined>,
   'deleteNewsArticle' : ActorMethod<[string], undefined>,
   'deletePrayerStar' : ActorMethod<[string], undefined>,
+  'deleteShopOrder' : ActorMethod<[string], undefined>,
   'getAllCommunities' : ActorMethod<[], Array<Community>>,
   'getAllContentBlocks' : ActorMethod<[], Array<ContentBlock>>,
   'getAllEvents' : ActorMethod<[], Array<Event>>,
@@ -205,11 +228,13 @@ export interface _SERVICE {
   'getLiturgyWeek' : ActorMethod<[string], [] | [LiturgyWeek]>,
   'getMassIntentions' : ActorMethod<[], Array<MassIntention>>,
   'getModlitwaConfig' : ActorMethod<[], [] | [ModlitwaConfig]>,
+  'getNewOrdersCount' : ActorMethod<[], bigint>,
   'getNewsArticle' : ActorMethod<[string], [] | [NewsArticle]>,
   'getPhotosByAlbum' : ActorMethod<[string], Array<GalleryPhoto>>,
   'getPrayerStars' : ActorMethod<[], Array<PrayerStar>>,
   'getPublicEvents' : ActorMethod<[], Array<Event>>,
   'getPublicNews' : ActorMethod<[], Array<NewsArticle>>,
+  'getShopOrders' : ActorMethod<[], Array<ShopOrder>>,
   'getSiteSettings' : ActorMethod<[], [] | [SiteSettings]>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
@@ -219,16 +244,18 @@ export interface _SERVICE {
   'removePhoto' : ActorMethod<[string, string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveLiturgyWeek' : ActorMethod<[LiturgyWeek], undefined>,
-  'setCurrentLiturgyWeekId' : ActorMethod<[string], undefined>,
   'saveMassIntention' : ActorMethod<[MassIntention], undefined>,
   'saveModlitwaConfig' : ActorMethod<[ModlitwaConfig], undefined>,
   'savePrayerStar' : ActorMethod<[PrayerStar], undefined>,
+  'saveShopOrder' : ActorMethod<[ShopOrder], undefined>,
+  'setCurrentLiturgyWeekId' : ActorMethod<[string], undefined>,
   'updateCommunity' : ActorMethod<[string, Community], undefined>,
   'updateContentBlock' : ActorMethod<[string, string], undefined>,
   'updateEvent' : ActorMethod<[string, Event], undefined>,
   'updateGalleryAlbum' : ActorMethod<[string, GalleryAlbum], undefined>,
   'updateHomeSections' : ActorMethod<[Array<HomeSection>], undefined>,
   'updateNewsArticle' : ActorMethod<[string, NewsArticle], undefined>,
+  'updateShopOrder' : ActorMethod<[string, ShopOrder], undefined>,
   'updateSiteSettings' : ActorMethod<[SiteSettings], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

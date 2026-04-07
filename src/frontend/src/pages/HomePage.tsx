@@ -71,6 +71,35 @@ const DEFAULT_SECTIONS = [
   },
 ];
 
+function HomePageSkeleton() {
+  return (
+    <main className="min-h-screen">
+      {/* Hero skeleton */}
+      <div className="min-h-screen hero-gradient flex flex-col items-center justify-center px-4 animate-pulse">
+        <div className="max-w-4xl mx-auto space-y-8 text-center">
+          <div className="h-3 w-48 bg-muted/60 rounded mx-auto" />
+          <div className="space-y-3">
+            <div className="h-14 w-96 bg-muted/40 rounded mx-auto" />
+            <div className="h-12 w-72 bg-muted/30 rounded mx-auto" />
+          </div>
+          <div className="h-4 w-80 bg-muted/30 rounded mx-auto" />
+          <div className="flex gap-4 justify-center pt-4">
+            <div className="h-11 w-36 bg-muted/40 rounded-full" />
+            <div className="h-11 w-28 bg-muted/30 rounded-full" />
+          </div>
+        </div>
+      </div>
+      {/* Content skeleton */}
+      <div className="py-24 px-4 space-y-4 max-w-3xl mx-auto text-center">
+        <div className="h-3 w-32 bg-muted/50 rounded mx-auto animate-pulse" />
+        <div className="h-8 w-64 bg-muted/40 rounded mx-auto animate-pulse" />
+        <div className="h-4 w-full bg-muted/30 rounded animate-pulse" />
+        <div className="h-4 w-5/6 bg-muted/30 rounded mx-auto animate-pulse" />
+      </div>
+    </main>
+  );
+}
+
 function HeroSection({ title, content }: { title?: string; content?: string }) {
   return (
     <section className="relative min-h-screen hero-gradient flex flex-col items-center justify-center text-center px-4">
@@ -421,21 +450,35 @@ function GaleriaSection({
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {latest.photos.slice(0, 4).map((photo, i) => (
-                <Link
-                  key={photo.id}
-                  to="/galeria"
-                  className="group relative aspect-square rounded-xl overflow-hidden bg-muted"
-                  data-ocid={`home.gallery.item.${i + 1}`}
-                >
-                  <img
-                    src={photo.blob.getDirectURL()}
-                    alt={photo.caption}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors duration-300" />
-                </Link>
-              ))}
+              {latest.photos.slice(0, 4).map((photo, i) => {
+                // Safe URL extraction – getDirectURL may be stripped after cache serialization
+                const src =
+                  typeof photo.blob?.getDirectURL === "function"
+                    ? photo.blob.getDirectURL()
+                    : ((photo.blob as unknown as { directURL?: string })
+                        ?.directURL ?? "");
+                return (
+                  <Link
+                    key={photo.id}
+                    to="/galeria"
+                    className="group relative aspect-square rounded-xl overflow-hidden bg-muted"
+                    data-ocid={`home.gallery.item.${i + 1}`}
+                  >
+                    {src ? (
+                      <img
+                        src={src}
+                        alt={photo.caption}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Image className="w-6 h-6 text-muted-foreground/40" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors duration-300" />
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -572,6 +615,11 @@ export function HomePage() {
       .filter((s) => s.enabled)
       .sort((a, b) => Number(a.order) - Number(b.order));
   }, [homeData]);
+
+  // Show skeleton on initial load before any data arrives
+  if (isLoading && !homeData) {
+    return <HomePageSkeleton />;
+  }
 
   const renderSection = (section: (typeof DEFAULT_SECTIONS)[0]) => {
     switch (section.sectionType) {

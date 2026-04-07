@@ -1,0 +1,273 @@
+type _ImmutableObjectStorageRefillResult = 
+ record {
+   success: opt bool;
+   topped_up_amount: opt nat;
+ };
+type _ImmutableObjectStorageRefillInformation = record {
+                                                  proposed_top_up_amount:
+                                                   opt nat;};
+type _ImmutableObjectStorageCreateCertificateResult = 
+ record {
+   blob_hash: text;
+   method: text;
+ };
+type UserRole = 
+ variant {
+   admin;
+   guest;
+   user;
+ };
+type UserProfile = 
+ record {
+   name: text;
+   role: opt AppUserRole;
+ };
+type SiteSettings = 
+ record {
+   aestheticMode: text;
+   contactData: text;
+   navigation: text;
+   typography: text;
+ };
+type ShopOrder = 
+ record {
+   address: text;
+   adminNotes: text;
+   city: text;
+   createdAt: text;
+   customerName: text;
+   deliveryType: text;
+   email: text;
+   id: text;
+   notes: text;
+   paymentConfirmed: bool;
+   phone: text;
+   postalCode: text;
+   productId: text;
+   productName: text;
+   productPrice: text;
+   status: text;
+   trackingNumber: text;
+ };
+type PrayerStar = 
+ record {
+   city: opt text;
+   color: text;
+   id: text;
+   intention: opt text;
+   isApproved: bool;
+   isHidden: bool;
+   isPublic: bool;
+   joinedAt: text;
+   name: opt text;
+   prayCount: nat;
+ };
+type NewsArticle = 
+ record {
+   content: text;
+   date: text;
+   id: text;
+   image: ExternalBlob;
+   order: nat;
+   published: bool;
+   title: text;
+ };
+type ModlitwaConfig = 
+ record {
+   accountNumber: text;
+   bankOwner: text;
+   heroDescription: text;
+   heroSubtitle: text;
+   heroTitle: text;
+   thankYouText: text;
+   thankYouTitle: text;
+ };
+type MassIntention = 
+ record {
+   assignedDayIndex: opt int;
+   assignedEntryId: opt text;
+   assignedMassDate: opt text;
+   assignedMassTime: opt text;
+   assignedWeekId: opt text;
+   color: text;
+   createdAt: text;
+   email: opt text;
+   id: text;
+   intention: text;
+   name: text;
+   offeringStatus: text;
+   phone: opt text;
+   status: text;
+ };
+type LiturgyWeek = 
+ record {
+   days: vec LiturgyDay;
+   heroDescription: text;
+   heroSubtitle: text;
+   heroTitle: text;
+   id: text;
+   weekEnd: text;
+   weekStart: text;
+ };
+type LiturgyEntry = 
+ record {
+   description: text;
+   entryType: text;
+   id: text;
+   intention: text;
+   order: nat;
+   serviceType: text;
+   time: text;
+ };
+type LiturgyDay = 
+ record {
+   dayIndex: nat;
+   entries: vec LiturgyEntry;
+ };
+type HomeSection = 
+ record {
+   customContent: text;
+   customTitle: text;
+   enabled: bool;
+   id: text;
+   order: nat;
+   sectionType: text;
+ };
+type GalleryPhoto = 
+ record {
+   "blob": ExternalBlob;
+   caption: text;
+   date: text;
+   id: text;
+   order: nat;
+ };
+type GalleryAlbum = 
+ record {
+   coverImage: ExternalBlob;
+   date: text;
+   description: text;
+   id: text;
+   layout: text;
+   name: text;
+   photos: vec GalleryPhoto;
+ };
+type ExternalBlob = blob;
+type Event = 
+ record {
+   date: text;
+   description: text;
+   featured: bool;
+   id: text;
+   image: ExternalBlob;
+   liturgicalColor: text;
+   pinned: bool;
+   published: bool;
+   title: text;
+ };
+type ContentBlock = 
+ record {
+   content: text;
+   id: text;
+ };
+type Community = 
+ record {
+   caretaker: text;
+   contactEmail: text;
+   contactPhone: text;
+   fullDescription: text;
+   heroImage: ExternalBlob;
+   id: text;
+   meetingDay: text;
+   meetingPlace: text;
+   meetingTime: text;
+   name: text;
+   order: nat;
+   photos: vec ExternalBlob;
+   shortDescription: text;
+ };
+type AppUserRole = 
+ variant {
+   admin;
+   editor;
+   moderator;
+   photographer;
+ };
+service : {
+  _immutableObjectStorageBlobsAreLive: (hashes: vec blob) -> (vec bool) query;
+  _immutableObjectStorageBlobsToDelete: () -> (vec blob) query;
+  _immutableObjectStorageConfirmBlobDeletion: (blobs: vec blob) -> ();
+  _immutableObjectStorageCreateCertificate: (blobHash: text) ->
+   (_ImmutableObjectStorageCreateCertificateResult);
+  _immutableObjectStorageRefillCashier: (refillInformation:
+   opt _ImmutableObjectStorageRefillInformation) ->
+   (_ImmutableObjectStorageRefillResult);
+  _immutableObjectStorageUpdateGatewayPrincipals: () -> ();
+  _initializeAccessControl: () -> ();
+  addCommunityPhoto: (communityId: text, photo: ExternalBlob) -> ();
+  addPhoto: (albumId: text, photo: GalleryPhoto) -> ();
+  assignAppRole: (user: principal, role: AppUserRole) -> ();
+  assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  copyPreviousWeek: (fromWeekId: text, toWeekId: text, newWeekStart: 
+   text, newWeekEnd: text) -> ();
+  createCommunity: (community: Community) -> ();
+  createEvent: (event: Event) -> ();
+  createGalleryAlbum: (album: GalleryAlbum) -> ();
+  createNewsArticle: (article: NewsArticle) -> ();
+  deleteCommunity: (id: text) -> ();
+  deleteEvent: (id: text) -> ();
+  deleteGalleryAlbum: (id: text) -> ();
+  deleteLiturgyWeek: (weekId: text) -> ();
+  deleteMassIntention: (id: text) -> ();
+  deleteNewsArticle: (id: text) -> ();
+  deletePrayerStar: (id: text) -> ();
+  deleteShopOrder: (id: text) -> ();
+  getAllCommunities: () -> (vec Community) query;
+  getAllContentBlocks: () -> (vec ContentBlock) query;
+  getAllEvents: () -> (vec Event) query;
+  getAllNews: () -> (vec NewsArticle) query;
+  getAppRole: (user: principal) -> (opt AppUserRole) query;
+  getCallerUserProfile: () -> (opt UserProfile) query;
+  getCallerUserRole: () -> (UserRole) query;
+  getCommunity: (id: text) -> (opt Community) query;
+  getContentBlock: (key: text) -> (opt ContentBlock) query;
+  getCurrentLiturgyWeek: () -> (opt LiturgyWeek) query;
+  getEvent: (id: text) -> (opt Event) query;
+  getGalleryAlbum: (id: text) -> (opt GalleryAlbum) query;
+  getGalleryAlbums: () -> (vec GalleryAlbum) query;
+  getHomeSections: () -> (vec HomeSection) query;
+  getLiturgyWeek: (weekId: text) -> (opt LiturgyWeek) query;
+  getMassIntentions: () -> (vec MassIntention) query;
+  getModlitwaConfig: () -> (opt ModlitwaConfig) query;
+  getNewOrdersCount: () -> (nat) query;
+  getNewsArticle: (id: text) -> (opt NewsArticle) query;
+  getPhotosByAlbum: (albumId: text) -> (vec GalleryPhoto) query;
+  getPrayerStars: () -> (vec PrayerStar) query;
+  getPublicEvents: () -> (vec Event) query;
+  getPublicNews: () -> (vec NewsArticle) query;
+  getShopOrders: () -> (vec ShopOrder) query;
+  getSiteSettings: () -> (opt SiteSettings) query;
+  getUserProfile: (user: principal) -> (opt UserProfile) query;
+  isCallerAdmin: () -> (bool) query;
+  listAllRoles: () -> (vec record {
+                             principal;
+                             AppUserRole;
+                           }) query;
+  listLiturgyWeeks: () -> (vec LiturgyWeek) query;
+  removeCommunityPhoto: (communityId: text, photoIndex: nat) -> ();
+  removePhoto: (albumId: text, photoId: text) -> ();
+  saveCallerUserProfile: (profile: UserProfile) -> ();
+  saveLiturgyWeek: (week: LiturgyWeek) -> ();
+  saveMassIntention: (intention: MassIntention) -> ();
+  saveModlitwaConfig: (config: ModlitwaConfig) -> ();
+  savePrayerStar: (star: PrayerStar) -> ();
+  saveShopOrder: (order: ShopOrder) -> ();
+  setCurrentLiturgyWeekId: (weekId: text) -> ();
+  updateCommunity: (id: text, community: Community) -> ();
+  updateContentBlock: (key: text, content: text) -> ();
+  updateEvent: (id: text, event: Event) -> ();
+  updateGalleryAlbum: (id: text, album: GalleryAlbum) -> ();
+  updateHomeSections: (sections: vec HomeSection) -> ();
+  updateNewsArticle: (id: text, article: NewsArticle) -> ();
+  updateShopOrder: (id: text, order: ShopOrder) -> ();
+  updateSiteSettings: (settings: SiteSettings) -> ();
+}

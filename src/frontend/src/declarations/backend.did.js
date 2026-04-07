@@ -8,14 +8,14 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const _CaffeineStorageCreateCertificateResult = IDL.Record({
+export const _ImmutableObjectStorageCreateCertificateResult = IDL.Record({
   'method' : IDL.Text,
   'blob_hash' : IDL.Text,
 });
-export const _CaffeineStorageRefillInformation = IDL.Record({
+export const _ImmutableObjectStorageRefillInformation = IDL.Record({
   'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
 });
-export const _CaffeineStorageRefillResult = IDL.Record({
+export const _ImmutableObjectStorageRefillResult = IDL.Record({
   'success' : IDL.Opt(IDL.Bool),
   'topped_up_amount' : IDL.Opt(IDL.Nat),
 });
@@ -157,6 +157,25 @@ export const PrayerStar = IDL.Record({
   'prayCount' : IDL.Nat,
   'intention' : IDL.Opt(IDL.Text),
 });
+export const ShopOrder = IDL.Record({
+  'id' : IDL.Text,
+  'customerName' : IDL.Text,
+  'status' : IDL.Text,
+  'trackingNumber' : IDL.Text,
+  'paymentConfirmed' : IDL.Bool,
+  'city' : IDL.Text,
+  'postalCode' : IDL.Text,
+  'createdAt' : IDL.Text,
+  'productId' : IDL.Text,
+  'productName' : IDL.Text,
+  'deliveryType' : IDL.Text,
+  'email' : IDL.Text,
+  'address' : IDL.Text,
+  'notes' : IDL.Text,
+  'phone' : IDL.Text,
+  'adminNotes' : IDL.Text,
+  'productPrice' : IDL.Text,
+});
 export const SiteSettings = IDL.Record({
   'contactData' : IDL.Text,
   'navigation' : IDL.Text,
@@ -165,33 +184,33 @@ export const SiteSettings = IDL.Record({
 });
 
 export const idlService = IDL.Service({
-  '_caffeineStorageBlobIsLive' : IDL.Func(
-      [IDL.Vec(IDL.Nat8)],
-      [IDL.Bool],
+  '_immutableObjectStorageBlobsAreLive' : IDL.Func(
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      [IDL.Vec(IDL.Bool)],
       ['query'],
     ),
-  '_caffeineStorageBlobsToDelete' : IDL.Func(
+  '_immutableObjectStorageBlobsToDelete' : IDL.Func(
       [],
       [IDL.Vec(IDL.Vec(IDL.Nat8))],
       ['query'],
     ),
-  '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+  '_immutableObjectStorageConfirmBlobDeletion' : IDL.Func(
       [IDL.Vec(IDL.Vec(IDL.Nat8))],
       [],
       [],
     ),
-  '_caffeineStorageCreateCertificate' : IDL.Func(
+  '_immutableObjectStorageCreateCertificate' : IDL.Func(
       [IDL.Text],
-      [_CaffeineStorageCreateCertificateResult],
+      [_ImmutableObjectStorageCreateCertificateResult],
       [],
     ),
-  '_caffeineStorageRefillCashier' : IDL.Func(
-      [IDL.Opt(_CaffeineStorageRefillInformation)],
-      [_CaffeineStorageRefillResult],
+  '_immutableObjectStorageRefillCashier' : IDL.Func(
+      [IDL.Opt(_ImmutableObjectStorageRefillInformation)],
+      [_ImmutableObjectStorageRefillResult],
       [],
     ),
-  '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
-  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  '_immutableObjectStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+  '_initializeAccessControl' : IDL.Func([], [], []),
   'addCommunityPhoto' : IDL.Func([IDL.Text, ExternalBlob], [], []),
   'addPhoto' : IDL.Func([IDL.Text, GalleryPhoto], [], []),
   'assignAppRole' : IDL.Func([IDL.Principal, AppUserRole], [], []),
@@ -212,6 +231,7 @@ export const idlService = IDL.Service({
   'deleteMassIntention' : IDL.Func([IDL.Text], [], []),
   'deleteNewsArticle' : IDL.Func([IDL.Text], [], []),
   'deletePrayerStar' : IDL.Func([IDL.Text], [], []),
+  'deleteShopOrder' : IDL.Func([IDL.Text], [], []),
   'getAllCommunities' : IDL.Func([], [IDL.Vec(Community)], ['query']),
   'getAllContentBlocks' : IDL.Func([], [IDL.Vec(ContentBlock)], ['query']),
   'getAllEvents' : IDL.Func([], [IDL.Vec(Event)], ['query']),
@@ -229,11 +249,13 @@ export const idlService = IDL.Service({
   'getLiturgyWeek' : IDL.Func([IDL.Text], [IDL.Opt(LiturgyWeek)], ['query']),
   'getMassIntentions' : IDL.Func([], [IDL.Vec(MassIntention)], ['query']),
   'getModlitwaConfig' : IDL.Func([], [IDL.Opt(ModlitwaConfig)], ['query']),
+  'getNewOrdersCount' : IDL.Func([], [IDL.Nat], ['query']),
   'getNewsArticle' : IDL.Func([IDL.Text], [IDL.Opt(NewsArticle)], ['query']),
   'getPhotosByAlbum' : IDL.Func([IDL.Text], [IDL.Vec(GalleryPhoto)], ['query']),
   'getPrayerStars' : IDL.Func([], [IDL.Vec(PrayerStar)], ['query']),
   'getPublicEvents' : IDL.Func([], [IDL.Vec(Event)], ['query']),
   'getPublicNews' : IDL.Func([], [IDL.Vec(NewsArticle)], ['query']),
+  'getShopOrders' : IDL.Func([], [IDL.Vec(ShopOrder)], ['query']),
   'getSiteSettings' : IDL.Func([], [IDL.Opt(SiteSettings)], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
@@ -254,26 +276,29 @@ export const idlService = IDL.Service({
   'saveMassIntention' : IDL.Func([MassIntention], [], []),
   'saveModlitwaConfig' : IDL.Func([ModlitwaConfig], [], []),
   'savePrayerStar' : IDL.Func([PrayerStar], [], []),
+  'saveShopOrder' : IDL.Func([ShopOrder], [], []),
+  'setCurrentLiturgyWeekId' : IDL.Func([IDL.Text], [], []),
   'updateCommunity' : IDL.Func([IDL.Text, Community], [], []),
   'updateContentBlock' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'updateEvent' : IDL.Func([IDL.Text, Event], [], []),
   'updateGalleryAlbum' : IDL.Func([IDL.Text, GalleryAlbum], [], []),
   'updateHomeSections' : IDL.Func([IDL.Vec(HomeSection)], [], []),
   'updateNewsArticle' : IDL.Func([IDL.Text, NewsArticle], [], []),
+  'updateShopOrder' : IDL.Func([IDL.Text, ShopOrder], [], []),
   'updateSiteSettings' : IDL.Func([SiteSettings], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
-  const _CaffeineStorageCreateCertificateResult = IDL.Record({
+  const _ImmutableObjectStorageCreateCertificateResult = IDL.Record({
     'method' : IDL.Text,
     'blob_hash' : IDL.Text,
   });
-  const _CaffeineStorageRefillInformation = IDL.Record({
+  const _ImmutableObjectStorageRefillInformation = IDL.Record({
     'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
   });
-  const _CaffeineStorageRefillResult = IDL.Record({
+  const _ImmutableObjectStorageRefillResult = IDL.Record({
     'success' : IDL.Opt(IDL.Bool),
     'topped_up_amount' : IDL.Opt(IDL.Nat),
   });
@@ -412,6 +437,25 @@ export const idlFactory = ({ IDL }) => {
     'prayCount' : IDL.Nat,
     'intention' : IDL.Opt(IDL.Text),
   });
+  const ShopOrder = IDL.Record({
+    'id' : IDL.Text,
+    'customerName' : IDL.Text,
+    'status' : IDL.Text,
+    'trackingNumber' : IDL.Text,
+    'paymentConfirmed' : IDL.Bool,
+    'city' : IDL.Text,
+    'postalCode' : IDL.Text,
+    'createdAt' : IDL.Text,
+    'productId' : IDL.Text,
+    'productName' : IDL.Text,
+    'deliveryType' : IDL.Text,
+    'email' : IDL.Text,
+    'address' : IDL.Text,
+    'notes' : IDL.Text,
+    'phone' : IDL.Text,
+    'adminNotes' : IDL.Text,
+    'productPrice' : IDL.Text,
+  });
   const SiteSettings = IDL.Record({
     'contactData' : IDL.Text,
     'navigation' : IDL.Text,
@@ -420,33 +464,33 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
-    '_caffeineStorageBlobIsLive' : IDL.Func(
-        [IDL.Vec(IDL.Nat8)],
-        [IDL.Bool],
+    '_immutableObjectStorageBlobsAreLive' : IDL.Func(
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        [IDL.Vec(IDL.Bool)],
         ['query'],
       ),
-    '_caffeineStorageBlobsToDelete' : IDL.Func(
+    '_immutableObjectStorageBlobsToDelete' : IDL.Func(
         [],
         [IDL.Vec(IDL.Vec(IDL.Nat8))],
         ['query'],
       ),
-    '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+    '_immutableObjectStorageConfirmBlobDeletion' : IDL.Func(
         [IDL.Vec(IDL.Vec(IDL.Nat8))],
         [],
         [],
       ),
-    '_caffeineStorageCreateCertificate' : IDL.Func(
+    '_immutableObjectStorageCreateCertificate' : IDL.Func(
         [IDL.Text],
-        [_CaffeineStorageCreateCertificateResult],
+        [_ImmutableObjectStorageCreateCertificateResult],
         [],
       ),
-    '_caffeineStorageRefillCashier' : IDL.Func(
-        [IDL.Opt(_CaffeineStorageRefillInformation)],
-        [_CaffeineStorageRefillResult],
+    '_immutableObjectStorageRefillCashier' : IDL.Func(
+        [IDL.Opt(_ImmutableObjectStorageRefillInformation)],
+        [_ImmutableObjectStorageRefillResult],
         [],
       ),
-    '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
-    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    '_immutableObjectStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+    '_initializeAccessControl' : IDL.Func([], [], []),
     'addCommunityPhoto' : IDL.Func([IDL.Text, ExternalBlob], [], []),
     'addPhoto' : IDL.Func([IDL.Text, GalleryPhoto], [], []),
     'assignAppRole' : IDL.Func([IDL.Principal, AppUserRole], [], []),
@@ -467,6 +511,7 @@ export const idlFactory = ({ IDL }) => {
     'deleteMassIntention' : IDL.Func([IDL.Text], [], []),
     'deleteNewsArticle' : IDL.Func([IDL.Text], [], []),
     'deletePrayerStar' : IDL.Func([IDL.Text], [], []),
+    'deleteShopOrder' : IDL.Func([IDL.Text], [], []),
     'getAllCommunities' : IDL.Func([], [IDL.Vec(Community)], ['query']),
     'getAllContentBlocks' : IDL.Func([], [IDL.Vec(ContentBlock)], ['query']),
     'getAllEvents' : IDL.Func([], [IDL.Vec(Event)], ['query']),
@@ -492,6 +537,7 @@ export const idlFactory = ({ IDL }) => {
     'getLiturgyWeek' : IDL.Func([IDL.Text], [IDL.Opt(LiturgyWeek)], ['query']),
     'getMassIntentions' : IDL.Func([], [IDL.Vec(MassIntention)], ['query']),
     'getModlitwaConfig' : IDL.Func([], [IDL.Opt(ModlitwaConfig)], ['query']),
+    'getNewOrdersCount' : IDL.Func([], [IDL.Nat], ['query']),
     'getNewsArticle' : IDL.Func([IDL.Text], [IDL.Opt(NewsArticle)], ['query']),
     'getPhotosByAlbum' : IDL.Func(
         [IDL.Text],
@@ -501,6 +547,7 @@ export const idlFactory = ({ IDL }) => {
     'getPrayerStars' : IDL.Func([], [IDL.Vec(PrayerStar)], ['query']),
     'getPublicEvents' : IDL.Func([], [IDL.Vec(Event)], ['query']),
     'getPublicNews' : IDL.Func([], [IDL.Vec(NewsArticle)], ['query']),
+    'getShopOrders' : IDL.Func([], [IDL.Vec(ShopOrder)], ['query']),
     'getSiteSettings' : IDL.Func([], [IDL.Opt(SiteSettings)], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
@@ -521,12 +568,15 @@ export const idlFactory = ({ IDL }) => {
     'saveMassIntention' : IDL.Func([MassIntention], [], []),
     'saveModlitwaConfig' : IDL.Func([ModlitwaConfig], [], []),
     'savePrayerStar' : IDL.Func([PrayerStar], [], []),
+    'saveShopOrder' : IDL.Func([ShopOrder], [], []),
+    'setCurrentLiturgyWeekId' : IDL.Func([IDL.Text], [], []),
     'updateCommunity' : IDL.Func([IDL.Text, Community], [], []),
     'updateContentBlock' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'updateEvent' : IDL.Func([IDL.Text, Event], [], []),
     'updateGalleryAlbum' : IDL.Func([IDL.Text, GalleryAlbum], [], []),
     'updateHomeSections' : IDL.Func([IDL.Vec(HomeSection)], [], []),
     'updateNewsArticle' : IDL.Func([IDL.Text, NewsArticle], [], []),
+    'updateShopOrder' : IDL.Func([IDL.Text, ShopOrder], [], []),
     'updateSiteSettings' : IDL.Func([SiteSettings], [], []),
   });
 };

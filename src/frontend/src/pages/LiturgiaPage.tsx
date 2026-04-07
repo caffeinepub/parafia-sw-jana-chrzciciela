@@ -402,7 +402,7 @@ function EntryRow({ entry, index, isAdmin, onDelete }: EntryRowProps) {
               <>
                 {ministers.lectors.length > 0 && (
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-primary/15 text-primary border border-primary/25">
                       LEKTOR
                     </span>
                     <span className="font-sans text-sm font-light text-muted-foreground/80">
@@ -412,7 +412,7 @@ function EntryRow({ entry, index, isAdmin, onDelete }: EntryRowProps) {
                 )}
                 {ministers.psalmists.length > 0 && (
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-accent/40 text-accent-foreground border border-accent/40">
                       PSALMISTA
                     </span>
                     <span className="font-sans text-sm font-light text-muted-foreground/80">
@@ -1167,7 +1167,7 @@ function MinisterRegistrationForm({
                       data-ocid="liturgia.minister_form.radio"
                     />
                     <span
-                      className={`font-sans text-sm font-light transition-colors capitalize ${r === "lektor" ? "text-blue-700 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-300" : "text-green-700 dark:text-green-400 group-hover:text-green-800 dark:group-hover:text-green-300"}`}
+                      className={`font-sans text-sm font-light transition-colors capitalize ${r === "lektor" ? "text-primary group-hover:text-primary/80" : "text-accent-foreground group-hover:text-foreground"}`}
                     >
                       {r === "lektor" ? "Lektor" : "Psalmista"}
                     </span>
@@ -1207,7 +1207,7 @@ function MinisterRegistrationForm({
             </div>
 
             {isAlreadySubmitted && (
-              <p className="font-sans text-xs text-amber-600 dark:text-amber-400">
+              <p className="font-sans text-xs text-muted-foreground">
                 Posługa na tę Mszę w tej roli została już zgłoszona.
               </p>
             )}

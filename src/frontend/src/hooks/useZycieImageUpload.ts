@@ -1,7 +1,7 @@
+import { loadConfig } from "@caffeineai/core-infrastructure";
+import { StorageClient } from "@caffeineai/object-storage";
 import { HttpAgent } from "@icp-sdk/core/agent";
 import { useState } from "react";
-import { loadConfig } from "../config";
-import { StorageClient } from "../utils/StorageClient";
 import { useInternetIdentity } from "./useInternetIdentity";
 
 export function useZycieImageUpload() {

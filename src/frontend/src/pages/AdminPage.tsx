@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import {
   useUpdateContentBlock,
   useUpdateHomeSections,
 } from "../hooks/useQueries";
+import { useNewOrdersCount } from "../hooks/useSklepData";
 
 // All tabs are now lazy-loaded -- panel admina otwiera się szybciej
 const AdminAktualnosciTab = React.lazy(() =>
@@ -70,6 +71,149 @@ const LAZY_FALLBACK = (
     Ładowanie...
   </div>
 );
+
+// ============================================================
+// NOTIFICATION BADGE SYSTEM
+// ============================================================
+
+const LS_SEEN_ORDERS = "admin_sklep_seen_order_ids";
+const LS_SEEN_INTENTIONS = "admin_modlitwa_seen_intention_ids";
+
+function getSeenIds(lsKey: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(lsKey);
+    if (raw) return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function markAllSeen(lsKey: string, ids: string[]) {
+  try {
+    localStorage.setItem(lsKey, JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
+}
+
+function countPendingIntentions(): number {
+  try {
+    const raw = localStorage.getItem("modlitwa_mass_intentions");
+    if (!raw) return 0;
+    const intentions = JSON.parse(raw) as Array<{ id: string; status: string }>;
+    const seen = getSeenIds(LS_SEEN_INTENTIONS);
+    return intentions.filter((i) => i.status === "pending" && !seen.has(i.id))
+      .length;
+  } catch {
+    return 0;
+  }
+}
+
+function useAdminBadges() {
+  const [sklepBadge, setSklepBadge] = useState(0);
+  const [modlitwaBadge, setModlitwaBadge] = useState(0);
+  const { identity } = useInternetIdentity();
+  const { data: backendNewOrdersCount } = useNewOrdersCount();
+
+  const refresh = useCallback(() => {
+    // Modlitwa badge still reads from localStorage (intentions cached there)
+    setModlitwaBadge(countPendingIntentions());
+  }, []);
+
+  // Sync Sklep badge from backend count
+  useEffect(() => {
+    if (backendNewOrdersCount !== undefined) {
+      // Subtract seen orders to get unseen new count
+      const seen = getSeenIds(LS_SEEN_ORDERS);
+      try {
+        const raw = localStorage.getItem("sklep_orders_cache");
+        if (raw) {
+          const orders = JSON.parse(raw) as Array<{
+            id: string;
+            status: string;
+          }>;
+          const unseenNew = orders.filter(
+            (o) =>
+              (o.status === "new" || o.status === "nowe") && !seen.has(o.id),
+          ).length;
+          setSklepBadge(unseenNew);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+      // Fallback: use raw backend count when no local cache
+      setSklepBadge(identity ? backendNewOrdersCount : 0);
+    }
+  }, [backendNewOrdersCount, identity]);
+
+  // Initial count + refresh every 30s for Modlitwa
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(refresh, 30_000);
+    return () => clearInterval(interval);
+  }, [refresh]);
+
+  const markSklepSeen = useCallback(() => {
+    try {
+      const raw = localStorage.getItem("sklep_orders_cache");
+      if (raw) {
+        const orders = JSON.parse(raw) as Array<{ id: string; status: string }>;
+        const newIds = orders
+          .filter((o) => o.status === "new" || o.status === "nowe")
+          .map((o) => o.id);
+        const existing = getSeenIds(LS_SEEN_ORDERS);
+        for (const id of newIds) existing.add(id);
+        markAllSeen(LS_SEEN_ORDERS, Array.from(existing));
+      }
+    } catch {
+      // ignore
+    }
+    setSklepBadge(0);
+  }, []);
+
+  const markModlitwaSeen = useCallback(() => {
+    try {
+      const raw = localStorage.getItem("modlitwa_mass_intentions");
+      if (raw) {
+        const intentions = JSON.parse(raw) as Array<{
+          id: string;
+          status: string;
+        }>;
+        const pendingIds = intentions
+          .filter((i) => i.status === "pending")
+          .map((i) => i.id);
+        const existing = getSeenIds(LS_SEEN_INTENTIONS);
+        for (const id of pendingIds) existing.add(id);
+        markAllSeen(LS_SEEN_INTENTIONS, Array.from(existing));
+      }
+    } catch {
+      // ignore
+    }
+    setModlitwaBadge(0);
+  }, []);
+
+  return {
+    sklepBadge,
+    modlitwaBadge,
+    markSklepSeen,
+    markModlitwaSeen,
+    refresh,
+  };
+}
+
+function NotificationDot({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-sans font-semibold leading-none"
+      aria-label={`${count} nowych`}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 // ============================================================
 // ACCESS GUARD
@@ -519,6 +663,8 @@ function HomeSectionsTab() {
 export function AdminPage() {
   const { identity } = useInternetIdentity();
   const { data: profile } = useGetCallerUserProfile();
+  const { sklepBadge, modlitwaBadge, markSklepSeen, markModlitwaSeen } =
+    useAdminBadges();
 
   if (!identity) {
     return <AccessDenied />;
@@ -559,9 +705,6 @@ export function AdminPage() {
               { value: "ustawienia", label: "Ustawienia" },
               { value: "wspolnoty", label: "Wspólnoty" },
               { value: "kancelaria", label: "Kancelaria" },
-              { value: "modlitwa", label: "Modlitwa" },
-              { value: "zycie", label: "Życie" },
-              { value: "sklep", label: "Sklep" },
             ].map((tab) => (
               <TabsTrigger
                 key={tab.value}
@@ -572,6 +715,36 @@ export function AdminPage() {
                 {tab.label}
               </TabsTrigger>
             ))}
+
+            {/* Modlitwa tab with pending intentions badge */}
+            <TabsTrigger
+              value="modlitwa"
+              onClick={markModlitwaSeen}
+              className="font-sans font-light text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-lg"
+              data-ocid="admin.modlitwa.tab"
+            >
+              Modlitwa
+              <NotificationDot count={modlitwaBadge} />
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="zycie"
+              className="font-sans font-light text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-lg"
+              data-ocid="admin.zycie.tab"
+            >
+              Życie
+            </TabsTrigger>
+
+            {/* Sklep tab with new orders badge */}
+            <TabsTrigger
+              value="sklep"
+              onClick={markSklepSeen}
+              className="font-sans font-light text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-lg"
+              data-ocid="admin.sklep.tab"
+            >
+              Sklep
+              <NotificationDot count={sklepBadge} />
+            </TabsTrigger>
           </TabsList>
 
           <React.Suspense fallback={LAZY_FALLBACK}>

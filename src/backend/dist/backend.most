@@ -1,0 +1,247 @@
+// Version: 1.0.0
+type AppUserRole__230886658 = {#admin; #editor; #moderator; #photographer};
+type Community__452518006 =
+  {
+    caretaker : Text;
+    contactEmail : Text;
+    contactPhone : Text;
+    fullDescription : Text;
+    heroImage : ExternalBlob__246066408;
+    id : Text;
+    meetingDay : Text;
+    meetingPlace : Text;
+    meetingTime : Text;
+    name : Text;
+    order : Nat;
+    photos : [ExternalBlob__246066408];
+    shortDescription : Text
+  };
+type ContentBlock__409031135 = {content : Text; id : Text};
+type Data__791452850<K, V> =
+  {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type Event__492135844 =
+  {
+    date : Text;
+    description : Text;
+    featured : Bool;
+    id : Text;
+    image : ExternalBlob__246066408;
+    liturgicalColor : Text;
+    pinned : Bool;
+    published : Bool;
+    title : Text
+  };
+type ExternalBlob__246066408 = Blob;
+type GalleryAlbum__584276885 =
+  {
+    coverImage : ExternalBlob__246066408;
+    date : Text;
+    description : Text;
+    id : Text;
+    layout : Text;
+    name : Text;
+    photos : [GalleryPhoto__25246558]
+  };
+type GalleryPhoto__25246558 =
+  {
+    blob : ExternalBlob__246066408;
+    caption : Text;
+    date : Text;
+    id : Text;
+    order : Nat
+  };
+type HomeSection__1025562810 =
+  {
+    customContent : Text;
+    customTitle : Text;
+    enabled : Bool;
+    id : Text;
+    order : Nat;
+    sectionType : Text
+  };
+type Internal__8484328<K, V> =
+  {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
+type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
+type LiturgyDay__629326066 =
+  {dayIndex : Nat; entries : [LiturgyEntry__665382349]};
+type LiturgyEntry__665382349 =
+  {
+    description : Text;
+    entryType : Text;
+    id : Text;
+    intention : Text;
+    order : Nat;
+    serviceType : Text;
+    time : Text
+  };
+type LiturgyWeek__340035423 =
+  {
+    days : [LiturgyDay__629326066];
+    heroDescription : Text;
+    heroSubtitle : Text;
+    heroTitle : Text;
+    id : Text;
+    weekEnd : Text;
+    weekStart : Text
+  };
+type Map__158565046<K, V> = Map__297112838<K, V>;
+type Map__297112838<K, V> =
+  {var root : Node__46230540<K, V>; var size : Nat__490723111};
+type Map__605269027<K, V> = Map__158565046<K, V>;
+type MassIntention__146698714 =
+  {
+    assignedDayIndex : ?Int;
+    assignedEntryId : ?Text;
+    assignedMassDate : ?Text;
+    assignedMassTime : ?Text;
+    assignedWeekId : ?Text;
+    color : Text;
+    createdAt : Text;
+    email : ?Text;
+    id : Text;
+    intention : Text;
+    name : Text;
+    offeringStatus : Text;
+    phone : ?Text;
+    status : Text
+  };
+type ModlitwaConfig__157170381 =
+  {
+    accountNumber : Text;
+    bankOwner : Text;
+    heroDescription : Text;
+    heroSubtitle : Text;
+    heroTitle : Text;
+    thankYouText : Text;
+    thankYouTitle : Text
+  };
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type NewsArticle__454649990 =
+  {
+    content : Text;
+    date : Text;
+    id : Text;
+    image : ExternalBlob__246066408;
+    order : Nat;
+    published : Bool;
+    title : Text
+  };
+type Node__46230540<K, V> =
+  {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
+type PrayerStar__840352245 =
+  {
+    city : ?Text;
+    color : Text;
+    id : Text;
+    intention : ?Text;
+    isApproved : Bool;
+    isHidden : Bool;
+    isPublic : Bool;
+    joinedAt : Text;
+    name : ?Text;
+    prayCount : Nat
+  };
+type ShopOrder__1019330041 =
+  {
+    address : Text;
+    adminNotes : Text;
+    city : Text;
+    createdAt : Text;
+    customerName : Text;
+    deliveryType : Text;
+    email : Text;
+    id : Text;
+    notes : Text;
+    paymentConfirmed : Bool;
+    phone : Text;
+    postalCode : Text;
+    productId : Text;
+    productName : Text;
+    productPrice : Text;
+    status : Text;
+    trackingNumber : Text
+  };
+type SiteSettings__555417481 =
+  {
+    aestheticMode : Text;
+    contactData : Text;
+    navigation : Text;
+    typography : Text
+  };
+type UserProfile__491224006 = {name : Text; role : ?AppUserRole__230886658};
+type UserRole__1054455867 = {#admin; #guest; #user};
+actor {
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__605269027<Principal, UserRole__1054455867>
+    };
+  stable appRoles :
+    {
+      var root : Node__46230540<Principal, AppUserRole__230886658>;
+      var size : Nat__490723111
+    };
+  stable communities :
+    {
+      var root : Node__46230540<Text, Community__452518006>;
+      var size : Nat__490723111
+    };
+  stable contentBlocks :
+    {
+      var root : Node__46230540<Text, ContentBlock__409031135>;
+      var size : Nat__490723111
+    };
+  stable var currentLiturgyWeekId : ?Text;
+  stable events :
+    {
+      var root : Node__46230540<Text, Event__492135844>;
+      var size : Nat__490723111
+    };
+  stable galleryAlbums :
+    {
+      var root : Node__46230540<Text, GalleryAlbum__584276885>;
+      var size : Nat__490723111
+    };
+  stable var homeSections :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?HomeSection__1025562810]];
+      var elementIndex : Nat__490723111
+    };
+  stable liturgyWeeks :
+    {
+      var root : Node__46230540<Text, LiturgyWeek__340035423>;
+      var size : Nat__490723111
+    };
+  stable var massIntentions :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?MassIntention__146698714]];
+      var elementIndex : Nat__490723111
+    };
+  stable var modlitwaConfig : ?ModlitwaConfig__157170381;
+  stable newsArticles :
+    {
+      var root : Node__46230540<Text, NewsArticle__454649990>;
+      var size : Nat__490723111
+    };
+  stable var prayerStars :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?PrayerStar__840352245]];
+      var elementIndex : Nat__490723111
+    };
+  stable var shopOrders :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?ShopOrder__1019330041]];
+      var elementIndex : Nat__490723111
+    };
+  stable var siteSettings : ?SiteSettings__555417481;
+  stable userProfiles :
+    {
+      var root : Node__46230540<Principal, UserProfile__491224006>;
+      var size : Nat__490723111
+    }
+};

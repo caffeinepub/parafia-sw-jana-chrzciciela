@@ -129,7 +129,7 @@ export function AktualnosociPage() {
                         {article.title}
                       </h2>
                       <p className="font-sans text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                        {article.content}
+                        {article.content?.slice(0, 300) ?? ""}
                       </p>
                       <span className="font-sans text-sm text-primary group-hover:text-primary/80 transition-colors pt-1">
                         Czytaj więcej →

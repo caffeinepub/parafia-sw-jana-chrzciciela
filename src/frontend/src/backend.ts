@@ -100,6 +100,25 @@ export interface GalleryPhoto {
     date: string;
     caption: string;
 }
+export interface ShopOrder {
+    id: string;
+    customerName: string;
+    status: string;
+    trackingNumber: string;
+    paymentConfirmed: boolean;
+    city: string;
+    postalCode: string;
+    createdAt: string;
+    productId: string;
+    productName: string;
+    deliveryType: string;
+    email: string;
+    address: string;
+    notes: string;
+    phone: string;
+    adminNotes: string;
+    productPrice: string;
+}
 export interface LiturgyWeek {
     id: string;
     weekEnd: string;
@@ -109,8 +128,12 @@ export interface LiturgyWeek {
     heroTitle: string;
     weekStart: string;
 }
-export interface _CaffeineStorageRefillInformation {
+export interface _ImmutableObjectStorageRefillInformation {
     proposed_top_up_amount?: bigint;
+}
+export interface _ImmutableObjectStorageCreateCertificateResult {
+    method: string;
+    blob_hash: string;
 }
 export interface Event {
     id: string;
@@ -122,10 +145,6 @@ export interface Event {
     pinned: boolean;
     liturgicalColor: string;
     image: ExternalBlob;
-}
-export interface _CaffeineStorageCreateCertificateResult {
-    method: string;
-    blob_hash: string;
 }
 export interface Community {
     id: string;
@@ -141,6 +160,10 @@ export interface Community {
     fullDescription: string;
     photos: Array<ExternalBlob>;
     contactPhone: string;
+}
+export interface _ImmutableObjectStorageRefillResult {
+    success?: boolean;
+    topped_up_amount?: bigint;
 }
 export interface PrayerStar {
     id: string;
@@ -191,14 +214,6 @@ export interface LiturgyDay {
     entries: Array<LiturgyEntry>;
     dayIndex: bigint;
 }
-export interface HomeSection {
-    id: string;
-    order: bigint;
-    sectionType: string;
-    enabled: boolean;
-    customTitle: string;
-    customContent: string;
-}
 export interface LiturgyEntry {
     id: string;
     serviceType: string;
@@ -207,6 +222,14 @@ export interface LiturgyEntry {
     time: string;
     description: string;
     intention: string;
+}
+export interface HomeSection {
+    id: string;
+    order: bigint;
+    sectionType: string;
+    enabled: boolean;
+    customTitle: string;
+    customContent: string;
 }
 export interface MassIntention {
     id: string;
@@ -228,10 +251,6 @@ export interface UserProfile {
     name: string;
     role?: AppUserRole;
 }
-export interface _CaffeineStorageRefillResult {
-    success?: boolean;
-    topped_up_amount?: bigint;
-}
 export enum AppUserRole {
     admin = "admin",
     moderator = "moderator",
@@ -244,13 +263,13 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
-    _caffeineStorageBlobIsLive(hash: Uint8Array): Promise<boolean>;
-    _caffeineStorageBlobsToDelete(): Promise<Array<Uint8Array>>;
-    _caffeineStorageConfirmBlobDeletion(blobs: Array<Uint8Array>): Promise<void>;
-    _caffeineStorageCreateCertificate(blobHash: string): Promise<_CaffeineStorageCreateCertificateResult>;
-    _caffeineStorageRefillCashier(refillInformation: _CaffeineStorageRefillInformation | null): Promise<_CaffeineStorageRefillResult>;
-    _caffeineStorageUpdateGatewayPrincipals(): Promise<void>;
-    _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
+    _immutableObjectStorageBlobsAreLive(hashes: Array<Uint8Array>): Promise<Array<boolean>>;
+    _immutableObjectStorageBlobsToDelete(): Promise<Array<Uint8Array>>;
+    _immutableObjectStorageConfirmBlobDeletion(blobs: Array<Uint8Array>): Promise<void>;
+    _immutableObjectStorageCreateCertificate(blobHash: string): Promise<_ImmutableObjectStorageCreateCertificateResult>;
+    _immutableObjectStorageRefillCashier(refillInformation: _ImmutableObjectStorageRefillInformation | null): Promise<_ImmutableObjectStorageRefillResult>;
+    _immutableObjectStorageUpdateGatewayPrincipals(): Promise<void>;
+    _initializeAccessControl(): Promise<void>;
     addCommunityPhoto(communityId: string, photo: ExternalBlob): Promise<void>;
     addPhoto(albumId: string, photo: GalleryPhoto): Promise<void>;
     assignAppRole(user: Principal, role: AppUserRole): Promise<void>;
@@ -267,6 +286,7 @@ export interface backendInterface {
     deleteMassIntention(id: string): Promise<void>;
     deleteNewsArticle(id: string): Promise<void>;
     deletePrayerStar(id: string): Promise<void>;
+    deleteShopOrder(id: string): Promise<void>;
     getAllCommunities(): Promise<Array<Community>>;
     getAllContentBlocks(): Promise<Array<ContentBlock>>;
     getAllEvents(): Promise<Array<Event>>;
@@ -284,11 +304,13 @@ export interface backendInterface {
     getLiturgyWeek(weekId: string): Promise<LiturgyWeek | null>;
     getMassIntentions(): Promise<Array<MassIntention>>;
     getModlitwaConfig(): Promise<ModlitwaConfig | null>;
+    getNewOrdersCount(): Promise<bigint>;
     getNewsArticle(id: string): Promise<NewsArticle | null>;
     getPhotosByAlbum(albumId: string): Promise<Array<GalleryPhoto>>;
     getPrayerStars(): Promise<Array<PrayerStar>>;
     getPublicEvents(): Promise<Array<Event>>;
     getPublicNews(): Promise<Array<NewsArticle>>;
+    getShopOrders(): Promise<Array<ShopOrder>>;
     getSiteSettings(): Promise<SiteSettings | null>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
@@ -298,116 +320,118 @@ export interface backendInterface {
     removePhoto(albumId: string, photoId: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveLiturgyWeek(week: LiturgyWeek): Promise<void>;
-    setCurrentLiturgyWeekId(weekId: string): Promise<void>;
     saveMassIntention(intention: MassIntention): Promise<void>;
     saveModlitwaConfig(config: ModlitwaConfig): Promise<void>;
     savePrayerStar(star: PrayerStar): Promise<void>;
+    saveShopOrder(order: ShopOrder): Promise<void>;
+    setCurrentLiturgyWeekId(weekId: string): Promise<void>;
     updateCommunity(id: string, community: Community): Promise<void>;
     updateContentBlock(key: string, content: string): Promise<void>;
     updateEvent(id: string, event: Event): Promise<void>;
     updateGalleryAlbum(id: string, album: GalleryAlbum): Promise<void>;
     updateHomeSections(sections: Array<HomeSection>): Promise<void>;
     updateNewsArticle(id: string, article: NewsArticle): Promise<void>;
+    updateShopOrder(id: string, order: ShopOrder): Promise<void>;
     updateSiteSettings(settings: SiteSettings): Promise<void>;
 }
-import type { AppUserRole as _AppUserRole, Community as _Community, ContentBlock as _ContentBlock, Event as _Event, ExternalBlob as _ExternalBlob, GalleryAlbum as _GalleryAlbum, GalleryPhoto as _GalleryPhoto, LiturgyWeek as _LiturgyWeek, MassIntention as _MassIntention, ModlitwaConfig as _ModlitwaConfig, NewsArticle as _NewsArticle, PrayerStar as _PrayerStar, SiteSettings as _SiteSettings, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
+import type { AppUserRole as _AppUserRole, Community as _Community, ContentBlock as _ContentBlock, Event as _Event, ExternalBlob as _ExternalBlob, GalleryAlbum as _GalleryAlbum, GalleryPhoto as _GalleryPhoto, LiturgyWeek as _LiturgyWeek, MassIntention as _MassIntention, ModlitwaConfig as _ModlitwaConfig, NewsArticle as _NewsArticle, PrayerStar as _PrayerStar, SiteSettings as _SiteSettings, UserProfile as _UserProfile, UserRole as _UserRole, _ImmutableObjectStorageRefillInformation as __ImmutableObjectStorageRefillInformation, _ImmutableObjectStorageRefillResult as __ImmutableObjectStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
-    async _caffeineStorageBlobIsLive(arg0: Uint8Array): Promise<boolean> {
+    async _immutableObjectStorageBlobsAreLive(arg0: Array<Uint8Array>): Promise<Array<boolean>> {
         if (this.processError) {
             try {
-                const result = await this.actor._caffeineStorageBlobIsLive(arg0);
+                const result = await this.actor._immutableObjectStorageBlobsAreLive(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor._caffeineStorageBlobIsLive(arg0);
+            const result = await this.actor._immutableObjectStorageBlobsAreLive(arg0);
             return result;
         }
     }
-    async _caffeineStorageBlobsToDelete(): Promise<Array<Uint8Array>> {
+    async _immutableObjectStorageBlobsToDelete(): Promise<Array<Uint8Array>> {
         if (this.processError) {
             try {
-                const result = await this.actor._caffeineStorageBlobsToDelete();
+                const result = await this.actor._immutableObjectStorageBlobsToDelete();
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor._caffeineStorageBlobsToDelete();
+            const result = await this.actor._immutableObjectStorageBlobsToDelete();
             return result;
         }
     }
-    async _caffeineStorageConfirmBlobDeletion(arg0: Array<Uint8Array>): Promise<void> {
+    async _immutableObjectStorageConfirmBlobDeletion(arg0: Array<Uint8Array>): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor._caffeineStorageConfirmBlobDeletion(arg0);
+                const result = await this.actor._immutableObjectStorageConfirmBlobDeletion(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor._caffeineStorageConfirmBlobDeletion(arg0);
+            const result = await this.actor._immutableObjectStorageConfirmBlobDeletion(arg0);
             return result;
         }
     }
-    async _caffeineStorageCreateCertificate(arg0: string): Promise<_CaffeineStorageCreateCertificateResult> {
+    async _immutableObjectStorageCreateCertificate(arg0: string): Promise<_ImmutableObjectStorageCreateCertificateResult> {
         if (this.processError) {
             try {
-                const result = await this.actor._caffeineStorageCreateCertificate(arg0);
+                const result = await this.actor._immutableObjectStorageCreateCertificate(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor._caffeineStorageCreateCertificate(arg0);
+            const result = await this.actor._immutableObjectStorageCreateCertificate(arg0);
             return result;
         }
     }
-    async _caffeineStorageRefillCashier(arg0: _CaffeineStorageRefillInformation | null): Promise<_CaffeineStorageRefillResult> {
+    async _immutableObjectStorageRefillCashier(arg0: _ImmutableObjectStorageRefillInformation | null): Promise<_ImmutableObjectStorageRefillResult> {
         if (this.processError) {
             try {
-                const result = await this.actor._caffeineStorageRefillCashier(to_candid_opt_n1(this._uploadFile, this._downloadFile, arg0));
-                return from_candid__CaffeineStorageRefillResult_n4(this._uploadFile, this._downloadFile, result);
+                const result = await this.actor._immutableObjectStorageRefillCashier(to_candid_opt_n1(this._uploadFile, this._downloadFile, arg0));
+                return from_candid__ImmutableObjectStorageRefillResult_n4(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor._caffeineStorageRefillCashier(to_candid_opt_n1(this._uploadFile, this._downloadFile, arg0));
-            return from_candid__CaffeineStorageRefillResult_n4(this._uploadFile, this._downloadFile, result);
+            const result = await this.actor._immutableObjectStorageRefillCashier(to_candid_opt_n1(this._uploadFile, this._downloadFile, arg0));
+            return from_candid__ImmutableObjectStorageRefillResult_n4(this._uploadFile, this._downloadFile, result);
         }
     }
-    async _caffeineStorageUpdateGatewayPrincipals(): Promise<void> {
+    async _immutableObjectStorageUpdateGatewayPrincipals(): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor._caffeineStorageUpdateGatewayPrincipals();
+                const result = await this.actor._immutableObjectStorageUpdateGatewayPrincipals();
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor._caffeineStorageUpdateGatewayPrincipals();
+            const result = await this.actor._immutableObjectStorageUpdateGatewayPrincipals();
             return result;
         }
     }
-    async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
+    async _initializeAccessControl(): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor._initializeAccessControlWithSecret(arg0);
+                const result = await this.actor._initializeAccessControl();
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor._initializeAccessControlWithSecret(arg0);
+            const result = await this.actor._initializeAccessControl();
             return result;
         }
     }
@@ -632,6 +656,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deletePrayerStar(arg0);
+            return result;
+        }
+    }
+    async deleteShopOrder(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteShopOrder(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteShopOrder(arg0);
             return result;
         }
     }
@@ -873,6 +911,20 @@ export class Backend implements backendInterface {
             return from_candid_opt_n60(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getNewOrdersCount(): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getNewOrdersCount();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getNewOrdersCount();
+            return result;
+        }
+    }
     async getNewsArticle(arg0: string): Promise<NewsArticle | null> {
         if (this.processError) {
             try {
@@ -941,6 +993,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getPublicNews();
             return from_candid_vec_n33(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getShopOrders(): Promise<Array<ShopOrder>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getShopOrders();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getShopOrders();
+            return result;
         }
     }
     async getSiteSettings(): Promise<SiteSettings | null> {
@@ -1069,20 +1135,6 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async setCurrentLiturgyWeekId(arg0: string): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.setCurrentLiturgyWeekId(arg0);
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.setCurrentLiturgyWeekId(arg0);
-            return result;
-        }
-    }
     async saveMassIntention(arg0: MassIntention): Promise<void> {
         if (this.processError) {
             try {
@@ -1122,6 +1174,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.savePrayerStar(to_candid_PrayerStar_n72(this._uploadFile, this._downloadFile, arg0));
+            return result;
+        }
+    }
+    async saveShopOrder(arg0: ShopOrder): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveShopOrder(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveShopOrder(arg0);
+            return result;
+        }
+    }
+    async setCurrentLiturgyWeekId(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setCurrentLiturgyWeekId(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setCurrentLiturgyWeekId(arg0);
             return result;
         }
     }
@@ -1209,6 +1289,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updateShopOrder(arg0: string, arg1: ShopOrder): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateShopOrder(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateShopOrder(arg0, arg1);
+            return result;
+        }
+    }
     async updateSiteSettings(arg0: SiteSettings): Promise<void> {
         if (this.processError) {
             try {
@@ -1257,7 +1351,7 @@ function from_candid_UserProfile_n40(_uploadFile: (file: ExternalBlob) => Promis
 function from_candid_UserRole_n42(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
     return from_candid_variant_n43(_uploadFile, _downloadFile, value);
 }
-function from_candid__CaffeineStorageRefillResult_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: __CaffeineStorageRefillResult): _CaffeineStorageRefillResult {
+function from_candid__ImmutableObjectStorageRefillResult_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: __ImmutableObjectStorageRefillResult): _ImmutableObjectStorageRefillResult {
     return from_candid_record_n5(_uploadFile, _downloadFile, value);
 }
 function from_candid_opt_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_AppUserRole]): AppUserRole | null {
@@ -1649,11 +1743,11 @@ function to_candid_UserProfile_n68(_uploadFile: (file: ExternalBlob) => Promise<
 function to_candid_UserRole_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
     return to_candid_variant_n14(_uploadFile, _downloadFile, value);
 }
-function to_candid__CaffeineStorageRefillInformation_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CaffeineStorageRefillInformation): __CaffeineStorageRefillInformation {
+function to_candid__ImmutableObjectStorageRefillInformation_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ImmutableObjectStorageRefillInformation): __ImmutableObjectStorageRefillInformation {
     return to_candid_record_n3(_uploadFile, _downloadFile, value);
 }
-function to_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CaffeineStorageRefillInformation | null): [] | [__CaffeineStorageRefillInformation] {
-    return value === null ? candid_none() : candid_some(to_candid__CaffeineStorageRefillInformation_n2(_uploadFile, _downloadFile, value));
+function to_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ImmutableObjectStorageRefillInformation | null): [] | [__ImmutableObjectStorageRefillInformation] {
+    return value === null ? candid_none() : candid_some(to_candid__ImmutableObjectStorageRefillInformation_n2(_uploadFile, _downloadFile, value));
 }
 async function to_candid_record_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: string;

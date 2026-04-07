@@ -86,10 +86,10 @@ const STATUS_LABELS: Record<ShopProduct["status"], string> = {
 };
 
 const STATUS_STYLES: Record<ShopProduct["status"], string> = {
-  available: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  new: "bg-sky-50 text-sky-700 border-sky-200",
-  featured: "bg-amber-50 text-amber-700 border-amber-200",
-  seasonal: "bg-orange-50 text-orange-700 border-orange-200",
+  available: "bg-primary/10 text-primary border-primary/25",
+  new: "bg-secondary text-secondary-foreground border-secondary-foreground/20",
+  featured: "bg-accent text-accent-foreground border-accent-foreground/20",
+  seasonal: "bg-muted text-foreground border-border",
   soldout: "bg-muted text-muted-foreground border-border",
 };
 
@@ -584,8 +584,8 @@ function Step4ThankYou({
       className="space-y-6 text-center py-4"
     >
       <div className="flex justify-center">
-        <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center">
-          <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+        <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center">
+          <CheckCircle2 className="w-10 h-10 text-primary" />
         </div>
       </div>
       <div className="space-y-2">

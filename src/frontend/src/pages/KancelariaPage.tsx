@@ -492,7 +492,7 @@ export function KancelariaPage() {
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(135deg, oklch(0.97 0.01 200), oklch(0.93 0.02 220), oklch(0.95 0.015 240))",
+                "linear-gradient(165deg, oklch(var(--theme-hero-from)) 0%, oklch(var(--card)) 55%, oklch(var(--accent) / 0.35) 100%)",
             }}
           />
         )}
@@ -555,14 +555,7 @@ export function KancelariaPage() {
             data-ocid="kancelaria.announcement.section"
           >
             <div className="max-w-3xl mx-auto">
-              <div
-                className="rounded-2xl border px-6 py-4 font-sans text-sm font-light leading-relaxed"
-                style={{
-                  background: "oklch(0.97 0.04 70 / 0.5)",
-                  borderColor: "oklch(0.80 0.08 70)",
-                  color: "oklch(0.40 0.06 60)",
-                }}
-              >
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 px-6 py-4 font-sans text-sm font-light leading-relaxed text-foreground/80">
                 {m.announcement}
               </div>
             </div>

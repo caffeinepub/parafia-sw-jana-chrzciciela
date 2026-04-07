@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import type { ShopConfig, ShopProduct } from "../pages/SklepPage";
 import { useActor } from "./useActor";
+import { useInternetIdentity } from "./useInternetIdentity";
 
 const PRODUCTS_KEY = "sklep_products";
 const CONFIG_KEY = "sklep_config";
@@ -9,6 +10,7 @@ const ORDERS_KEY = "sklep_orders";
 const LS_PRODUCTS = "sklep_products_cache";
 const LS_CONFIG = "sklep_config_cache";
 const LS_ORDERS = "sklep_orders_cache";
+const LS_ORDERS_MIGRATED = "sklep_orders_migrated";
 
 export const DEFAULT_CONFIG: ShopConfig = {
   heroTitle: "Sklep parafialny",
@@ -192,15 +194,44 @@ export function useShopOrders() {
     queryKey: ["shopOrders"],
     queryFn: async () => {
       if (!actor) return getLocalOrders();
-      try {
-        const block = await actor.getContentBlock(ORDERS_KEY);
-        if (block?.content) {
-          const data = parseOrders(block.content);
-          localStorage.setItem(LS_ORDERS, block.content);
-          return data;
+
+      // One-time migration: if old contentBlock data exists and backend is empty
+      const alreadyMigrated = localStorage.getItem(LS_ORDERS_MIGRATED);
+      if (!alreadyMigrated) {
+        try {
+          const backendOrders = await actor.getShopOrders();
+          if (backendOrders.length === 0) {
+            // Check if there are legacy orders in the old contentBlock
+            const legacyBlock = await actor.getContentBlock(ORDERS_KEY);
+            if (legacyBlock?.content) {
+              const legacyOrders = parseOrders(legacyBlock.content);
+              for (const order of legacyOrders) {
+                try {
+                  await actor.saveShopOrder(order);
+                } catch {
+                  // ignore per-order errors during migration
+                }
+              }
+            }
+          }
+          localStorage.setItem(LS_ORDERS_MIGRATED, "1");
+          // Re-fetch after migration
+          const freshOrders = await actor.getShopOrders();
+          const normalized = freshOrders as ShopOrder[];
+          localStorage.setItem(LS_ORDERS, JSON.stringify(normalized));
+          return normalized;
+        } catch (e) {
+          console.warn("Migration failed, falling back:", e);
         }
+      }
+
+      try {
+        const result = await actor.getShopOrders();
+        const normalized = result as ShopOrder[];
+        localStorage.setItem(LS_ORDERS, JSON.stringify(normalized));
+        return normalized;
       } catch (e) {
-        console.warn("Failed to load sklep_orders from backend:", e);
+        console.warn("Failed to load shop orders from backend:", e);
       }
       return getLocalOrders();
     },
@@ -209,17 +240,6 @@ export function useShopOrders() {
     placeholderData: getLocalOrders,
   });
 
-  const persistOrders = useCallback(
-    async (orders: ShopOrder[]) => {
-      if (!actor) throw new Error("Actor not available");
-      const json = JSON.stringify(orders);
-      queryClient.setQueryData(["shopOrders"], orders);
-      localStorage.setItem(LS_ORDERS, json);
-      await actor.updateContentBlock(ORDERS_KEY, json);
-    },
-    [actor, queryClient],
-  );
-
   const saveOrder = useCallback(
     async (order: ShopOrder) => {
       if (!actor) {
@@ -227,31 +247,34 @@ export function useShopOrders() {
           "Aplikacja nie jest jeszcze gotowa. Odczekaj chwilę i spróbuj ponownie.",
         );
       }
+      // Optimistic update in localStorage for immediate UX
       const current = getLocalOrders();
-      const updated = [order, ...current];
-      queryClient.setQueryData(["shopOrders"], updated);
-      localStorage.setItem(LS_ORDERS, JSON.stringify(updated));
-      await actor.updateContentBlock(ORDERS_KEY, JSON.stringify(updated));
+      const optimistic = [order, ...current];
+      localStorage.setItem(LS_ORDERS, JSON.stringify(optimistic));
+      // Save to backend (dedicated method — no JSON blob)
+      await actor.saveShopOrder(order);
+      // Invalidate so next read reflects server state
+      await queryClient.invalidateQueries({ queryKey: ["shopOrders"] });
     },
     [actor, queryClient],
   );
 
   const updateOrder = useCallback(
     async (id: string, order: ShopOrder) => {
-      const current = query.data ?? getLocalOrders();
-      const updated = current.map((o) => (o.id === id ? order : o));
-      await persistOrders(updated);
+      if (!actor) throw new Error("Actor not available");
+      await actor.updateShopOrder(id, order);
+      await queryClient.invalidateQueries({ queryKey: ["shopOrders"] });
     },
-    [query.data, persistOrders],
+    [actor, queryClient],
   );
 
   const deleteOrder = useCallback(
     async (id: string) => {
-      const current = query.data ?? getLocalOrders();
-      const updated = current.filter((o) => o.id !== id);
-      await persistOrders(updated);
+      if (!actor) throw new Error("Actor not available");
+      await actor.deleteShopOrder(id);
+      await queryClient.invalidateQueries({ queryKey: ["shopOrders"] });
     },
-    [query.data, persistOrders],
+    [actor, queryClient],
   );
 
   return {
@@ -261,4 +284,24 @@ export function useShopOrders() {
     updateOrder,
     deleteOrder,
   };
+}
+
+export function useNewOrdersCount() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<number>({
+    queryKey: ["newOrdersCount"],
+    queryFn: async () => {
+      if (!actor) return 0;
+      try {
+        const count = await actor.getNewOrdersCount();
+        return Number(count);
+      } catch {
+        return 0;
+      }
+    },
+    enabled: !!actor && !isFetching && !!identity,
+    staleTime: 60_000,
+  });
 }

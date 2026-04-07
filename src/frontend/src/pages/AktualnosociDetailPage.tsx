@@ -3,8 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import React from "react";
 import type { NewsArticle } from "../backend.d";
 import { SectionReveal } from "../components/parish/SectionReveal";
-import { useActor } from "../hooks/useActor";
-import { usePublicNews } from "../hooks/useQueries";
+import { useNewsArticle, usePublicNews } from "../hooks/useQueries";
 import { Link, useParams } from "../router";
 
 function NewsDetailContent({ article }: { article: NewsArticle }) {
@@ -66,64 +65,48 @@ function NewsDetailContent({ article }: { article: NewsArticle }) {
   );
 }
 
+function DetailSkeleton() {
+  return (
+    <main className="min-h-screen pt-nav">
+      <div
+        className="max-w-3xl mx-auto px-4 sm:px-6 py-16 space-y-8"
+        data-ocid="news.detail.loading_state"
+      >
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-12 w-3/4" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="aspect-video w-full rounded-xl" />
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export function AktualnosociDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: news, isLoading } = usePublicNews();
-  const { actor, isFetching } = useActor();
 
-  const [singleArticle, setSingleArticle] = React.useState<NewsArticle | null>(
-    null,
-  );
-  const [singleLoading, setSingleLoading] = React.useState(false);
+  // 1. Fetch full list (may already be in cache from preload)
+  const { data: news, isLoading: listLoading } = usePublicNews();
 
-  // Try to find from list first, then fetch individually
-  const fromList = React.useMemo(() => {
-    if (!id || !news) return null;
-    return news.find((a) => a.id === id) ?? null;
-  }, [news, id]);
+  // 2. Fetch single article in parallel immediately – no waiting for list
+  //    This is the fast path when accessing via direct URL with empty cache.
+  const { data: singleArticle, isLoading: singleLoading } = useNewsArticle(id);
 
-  React.useEffect(() => {
-    if (!id || !actor || isFetching || fromList) return;
-    let cancelled = false;
-    setSingleLoading(true);
-    actor
-      .getNewsArticle(id)
-      .then((result) => {
-        if (!cancelled) {
-          setSingleArticle(result ?? null);
-          setSingleLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setSingleLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id, actor, isFetching, fromList]);
+  // Try list first (cache hit), fall back to single-article fetch
+  const article = React.useMemo(() => {
+    const fromList = news?.find((a) => a.id === id) ?? null;
+    return fromList ?? singleArticle ?? null;
+  }, [news, singleArticle, id]);
 
-  const article = fromList ?? singleArticle;
-  const loading = isLoading || singleLoading;
+  // Loading: show skeleton only while neither source has resolved yet
+  const loading = (listLoading || singleLoading) && !article;
 
   if (loading) {
-    return (
-      <main className="min-h-screen pt-nav">
-        <div
-          className="max-w-3xl mx-auto px-4 sm:px-6 py-16 space-y-8"
-          data-ocid="news.detail.loading_state"
-        >
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-12 w-3/4" />
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="aspect-video w-full rounded-xl" />
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-5/6" />
-          </div>
-        </div>
-      </main>
-    );
+    return <DetailSkeleton />;
   }
 
   if (!article) {

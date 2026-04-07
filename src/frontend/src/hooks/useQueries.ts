@@ -387,23 +387,50 @@ export function useUpdateContentBlock() {
 }
 
 // ============================================================
-// HOME PAGE DATA – single parallel fetch for all sections
+// HOME PAGE DATA – composed from individual preloaded hooks
 // ============================================================
 
+/**
+ * Composes data for the home page from the three individual hooks that are
+ * already preloaded at app startup (homeSections, siteSettings, publicNews).
+ * This avoids double-fetching: the preload fills cache under ["homeSections"],
+ * ["siteSettings"] and ["publicNews"] – we just read from those same keys.
+ */
 export function useHomePageData() {
+  const { data: homeSections, isLoading: sectionsLoading } = useHomeSections();
+  const { data: siteSettings, isLoading: settingsLoading } = useSiteSettings();
+  const { data: latestNews, isLoading: newsLoading } = usePublicNews();
+
+  const isLoading = sectionsLoading || settingsLoading || newsLoading;
+  const data = React.useMemo(() => {
+    if (isLoading && !homeSections && !siteSettings && !latestNews) return null;
+    return {
+      homeSections: homeSections ?? [],
+      siteSettings: siteSettings ?? null,
+      latestNews: latestNews ?? [],
+    };
+  }, [homeSections, siteSettings, latestNews, isLoading]);
+
+  return { data, isLoading };
+}
+
+// ============================================================
+// SINGLE NEWS ARTICLE
+// ============================================================
+
+export function useNewsArticle(id: string | undefined) {
   const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["homePageData"],
+  return useQuery<NewsArticle | null>({
+    queryKey: ["newsArticle", id],
     queryFn: async () => {
-      if (!actor) return null;
-      const [homeSections, siteSettings, latestNews] = await Promise.all([
-        actor.getHomeSections(),
-        actor.getSiteSettings(),
-        actor.getPublicNews(),
-      ]);
-      return { homeSections, siteSettings, latestNews };
+      if (!actor || !id) return null;
+      try {
+        return (await actor.getNewsArticle(id)) ?? null;
+      } catch {
+        return null;
+      }
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!id,
     staleTime: 300_000,
   });
 }

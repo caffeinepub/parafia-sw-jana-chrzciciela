@@ -7,10 +7,10 @@ import Array "mo:core/Array";
 import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
 import Nat "mo:core/Nat";
-import Storage "blob-storage/Storage";
-import MixinStorage "blob-storage/Mixin";
-import MixinAuthorization "authorization/MixinAuthorization";
-import AccessControl "authorization/access-control";
+import Storage "mo:caffeineai-object-storage/Storage";
+import MixinObjectStorage "mo:caffeineai-object-storage/Mixin";
+import MixinAuthorization "mo:caffeineai-authorization/MixinAuthorization";
+import AccessControl "mo:caffeineai-authorization/access-control";
 
 
 // Enable data migration
@@ -141,7 +141,7 @@ actor {
   let contentBlocks = Map.empty<Text, ContentBlock>();
   var siteSettings : ?SiteSettings = null;
 
-  include MixinStorage();
+  include MixinObjectStorage();
 
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -763,6 +763,20 @@ actor {
     };
     let filtered = shopOrders.toArray().filter(func(o : ShopOrder) : Bool { o.id != id });
     shopOrders := List.fromArray(filtered);
+  };
+
+  public shared query ({ caller }) func getNewOrdersCount() : async Nat {
+    if (not isAuthenticated(caller)) {
+      Runtime.trap("Unauthorized: Authentication required");
+    };
+    let allOrders = shopOrders.toArray();
+    var count = 0;
+    for (order in allOrders.vals()) {
+      if (order.status == "new") {
+        count += 1;
+      };
+    };
+    count;
   };
 
 };

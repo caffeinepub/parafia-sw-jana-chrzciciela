@@ -25,6 +25,25 @@ export interface GalleryPhoto {
     date: string;
     caption: string;
 }
+export interface ShopOrder {
+    id: string;
+    customerName: string;
+    status: string;
+    trackingNumber: string;
+    paymentConfirmed: boolean;
+    city: string;
+    postalCode: string;
+    createdAt: string;
+    productId: string;
+    productName: string;
+    deliveryType: string;
+    email: string;
+    address: string;
+    notes: string;
+    phone: string;
+    adminNotes: string;
+    productPrice: string;
+}
 export interface LiturgyWeek {
     id: string;
     weekEnd: string;
@@ -109,14 +128,6 @@ export interface LiturgyDay {
     entries: Array<LiturgyEntry>;
     dayIndex: bigint;
 }
-export interface HomeSection {
-    id: string;
-    order: bigint;
-    sectionType: string;
-    enabled: boolean;
-    customTitle: string;
-    customContent: string;
-}
 export interface LiturgyEntry {
     id: string;
     serviceType: string;
@@ -125,6 +136,14 @@ export interface LiturgyEntry {
     time: string;
     description: string;
     intention: string;
+}
+export interface HomeSection {
+    id: string;
+    order: bigint;
+    sectionType: string;
+    enabled: boolean;
+    customTitle: string;
+    customContent: string;
 }
 export interface MassIntention {
     id: string;
@@ -174,6 +193,7 @@ export interface backendInterface {
     deleteMassIntention(id: string): Promise<void>;
     deleteNewsArticle(id: string): Promise<void>;
     deletePrayerStar(id: string): Promise<void>;
+    deleteShopOrder(id: string): Promise<void>;
     getAllCommunities(): Promise<Array<Community>>;
     getAllContentBlocks(): Promise<Array<ContentBlock>>;
     getAllEvents(): Promise<Array<Event>>;
@@ -191,11 +211,13 @@ export interface backendInterface {
     getLiturgyWeek(weekId: string): Promise<LiturgyWeek | null>;
     getMassIntentions(): Promise<Array<MassIntention>>;
     getModlitwaConfig(): Promise<ModlitwaConfig | null>;
+    getNewOrdersCount(): Promise<bigint>;
     getNewsArticle(id: string): Promise<NewsArticle | null>;
     getPhotosByAlbum(albumId: string): Promise<Array<GalleryPhoto>>;
     getPrayerStars(): Promise<Array<PrayerStar>>;
     getPublicEvents(): Promise<Array<Event>>;
     getPublicNews(): Promise<Array<NewsArticle>>;
+    getShopOrders(): Promise<Array<ShopOrder>>;
     getSiteSettings(): Promise<SiteSettings | null>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
@@ -205,15 +227,17 @@ export interface backendInterface {
     removePhoto(albumId: string, photoId: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveLiturgyWeek(week: LiturgyWeek): Promise<void>;
-    setCurrentLiturgyWeekId(weekId: string): Promise<void>;
     saveMassIntention(intention: MassIntention): Promise<void>;
     saveModlitwaConfig(config: ModlitwaConfig): Promise<void>;
     savePrayerStar(star: PrayerStar): Promise<void>;
+    saveShopOrder(order: ShopOrder): Promise<void>;
+    setCurrentLiturgyWeekId(weekId: string): Promise<void>;
     updateCommunity(id: string, community: Community): Promise<void>;
     updateContentBlock(key: string, content: string): Promise<void>;
     updateEvent(id: string, event: Event): Promise<void>;
     updateGalleryAlbum(id: string, album: GalleryAlbum): Promise<void>;
     updateHomeSections(sections: Array<HomeSection>): Promise<void>;
     updateNewsArticle(id: string, article: NewsArticle): Promise<void>;
+    updateShopOrder(id: string, order: ShopOrder): Promise<void>;
     updateSiteSettings(settings: SiteSettings): Promise<void>;
 }

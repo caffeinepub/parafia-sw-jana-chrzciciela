@@ -1179,7 +1179,7 @@ export function ModlitwaPage() {
                 <Button
                   size="sm"
                   onClick={saveHero}
-                  className="bg-amber-500 hover:bg-amber-400 text-black"
+                  className="bg-primary/80 hover:bg-primary text-primary-foreground"
                   data-ocid="modlitwa.hero.save_button"
                 >
                   <Save className="w-4 h-4 mr-1" /> Zapisz
@@ -1333,24 +1333,16 @@ export function ModlitwaPage() {
             </div>
 
             {/* Offering */}
-            <div
-              className="rounded-2xl p-6 border"
-              style={{
-                background:
-                  "linear-gradient(135deg, #1a1206 0%, #2a1e08 50%, #1a1206 100%)",
-                borderColor: "rgba(255,215,0,0.25)",
-              }}
-            >
+            <div className="rounded-2xl p-6 border border-primary/30 bg-card">
               <h3
-                className="text-lg font-light mb-4"
+                className="text-lg font-light mb-4 text-primary"
                 style={{
-                  color: "#FFD700",
                   fontFamily: "'Playfair Display', serif",
                 }}
               >
                 Ofiara za Mszę Świętą
               </h3>
-              <p className="text-amber-100/60 text-sm leading-relaxed mb-6">
+              <p className="text-muted-foreground text-sm leading-relaxed mb-6">
                 Ofiary przeznaczane są na:
               </p>
               <ul className="space-y-1.5 mb-6">
@@ -1361,21 +1353,18 @@ export function ModlitwaPage() {
                 ].map((item) => (
                   <li
                     key={item}
-                    className="flex items-center gap-2 text-sm text-amber-100/70"
+                    className="flex items-center gap-2 text-sm text-foreground/70"
                   >
-                    <span className="text-amber-400">✦</span> {item}
+                    <span className="text-primary/70">✦</span> {item}
                   </li>
                 ))}
               </ul>
 
-              <div
-                className="rounded-xl p-4 mb-4"
-                style={{ background: "rgba(255,215,0,0.08)" }}
-              >
-                <p className="text-amber-200/60 text-xs mb-1">
+              <div className="rounded-xl p-4 mb-4 bg-muted/50 border border-border/50">
+                <p className="text-muted-foreground text-xs mb-1">
                   {config.bankOwner}
                 </p>
-                <p className="text-amber-100 font-mono text-sm leading-relaxed tracking-wide">
+                <p className="text-foreground font-mono text-sm leading-relaxed tracking-wide">
                   {config.accountNumber}
                 </p>
               </div>
@@ -1383,11 +1372,6 @@ export function ModlitwaPage() {
               <Button
                 variant="outline"
                 className="w-full mb-4"
-                style={{
-                  borderColor: "rgba(255,215,0,0.3)",
-                  color: "#FFD700",
-                  background: "transparent",
-                }}
                 onClick={handleCopyAccount}
                 data-ocid="modlitwa.offering.copy_button"
               >
@@ -1402,15 +1386,12 @@ export function ModlitwaPage() {
                 )}
               </Button>
 
-              <div
-                className="rounded-lg p-3"
-                style={{ background: "rgba(255,215,0,0.05)" }}
-              >
-                <p className="text-amber-100/50 text-xs leading-relaxed">
-                  <span className="text-amber-300/70">Tytuł przelewu:</span>{" "}
+              <div className="rounded-lg p-3 bg-muted/30">
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  <span className="text-foreground/60">Tytuł przelewu:</span>{" "}
                   Intencja mszalna + nazwisko
                 </p>
-                <p className="text-amber-100/40 text-xs mt-2 leading-relaxed">
+                <p className="text-muted-foreground/60 text-xs mt-2 leading-relaxed">
                   Po złożeniu ofiary administrator oznaczy status intencji.
                 </p>
               </div>
@@ -1532,9 +1513,6 @@ export function ModlitwaPage() {
               <Button
                 type="submit"
                 className="w-full"
-                style={{
-                  background: "linear-gradient(135deg, #0d0520, #1a0a2e)",
-                }}
                 data-ocid="modlitwa.prayer.submit_button"
               >
                 <span className="mr-2">⭐</span>Dołącz do modlitwy
@@ -1611,12 +1589,12 @@ export function ModlitwaPage() {
                         style={{
                           background:
                             intention.offeringStatus === "paid"
-                              ? "rgba(34,197,94,0.15)"
-                              : "rgba(251,146,60,0.15)",
+                              ? "oklch(var(--primary) / 0.12)"
+                              : "oklch(var(--muted))",
                           color:
                             intention.offeringStatus === "paid"
-                              ? "#16a34a"
-                              : "#ea580c",
+                              ? "oklch(var(--primary))"
+                              : "oklch(var(--muted-foreground))",
                           border: "none",
                         }}
                       >
@@ -1796,12 +1774,12 @@ export function ModlitwaPage() {
                 style={{
                   background:
                     selectedIntention.offeringStatus === "paid"
-                      ? "rgba(34,197,94,0.15)"
-                      : "rgba(251,146,60,0.15)",
+                      ? "oklch(var(--primary) / 0.12)"
+                      : "oklch(var(--muted))",
                   color:
                     selectedIntention.offeringStatus === "paid"
-                      ? "#16a34a"
-                      : "#ea580c",
+                      ? "oklch(var(--primary))"
+                      : "oklch(var(--muted-foreground))",
                   border: "none",
                 }}
               >
